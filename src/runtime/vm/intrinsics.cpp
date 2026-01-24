@@ -93,7 +93,7 @@ RtResult<IntrinsicInvoker> Intrinsics::get_newobj_intrinsic_by_method(const meta
 }
 
 // Get ID for an intrinsic invoker (with registration if needed)
-uint16_t Intrinsics::get_intrinsic_invoker_id(IntrinsicInvoker invoker)
+uint16_t Intrinsics::register_intrinsic_invoker_id(IntrinsicInvoker invoker)
 {
     auto it = g_intrinsicInvokerIdMap.find(invoker);
     if (it != g_intrinsicInvokerIdMap.end())
@@ -113,11 +113,10 @@ uint16_t Intrinsics::get_intrinsic_invoker_id(IntrinsicInvoker invoker)
 }
 
 // Get intrinsic invoker by ID
-IntrinsicInvoker Intrinsics::get_intrinsic_invoker_by_id(uint16_t id)
+IntrinsicInvoker Intrinsics::get_intrinsic_invoker_by_id_unchecked(uint16_t id)
 {
-    if (id < g_intrinsicInvokerIdList.size())
-        return g_intrinsicInvokerIdList[id];
-    return nullptr;
+    assert(id < g_intrinsicInvokerIdList.size() && "Invalid intrinsic invoker id");
+    return g_intrinsicInvokerIdList[id];
 }
 
 // Initialize intrinsics system

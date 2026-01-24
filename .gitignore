@@ -425,3 +425,7 @@ ___*
 /src/samples/lean-wasm/h5/lean.js
 /src/samples/lean-wasm/h5/lean.wasm
 *.wasm
+/src/leanaot/output/cpp
+/src/samples/simple-aot/cpp
+/.vscode
+/src/tools/leanaot

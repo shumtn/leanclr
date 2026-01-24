@@ -122,6 +122,16 @@ RtException* Exception::raise_error_as_exception(RtErr err, interp::InterpFrame*
     }
 }
 
+RtException* Exception::raise_aot_error_as_exception(RtErr err, const metadata::RtMethodInfo* methodInfo, int32_t ip)
+{
+    return raise_error_as_exception(err, nullptr, reinterpret_cast<const void*>(static_cast<intptr_t>(ip)));
+}
+
+RtException* Exception::raise_aot_exception(RtException* ex, const metadata::RtMethodInfo* methodInfo, int32_t ip)
+{
+    return raise_exception(ex, nullptr, reinterpret_cast<const void*>(static_cast<intptr_t>(ip)));
+}
+
 void Exception::raise_internal_runtime_error_as_exception(RtErr err, const char* message)
 {
     raise_error_as_exception(err, nullptr, nullptr);

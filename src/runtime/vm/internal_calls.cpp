@@ -99,7 +99,7 @@ RtResult<InternalCallInvoker> InternalCalls::get_newobj_internal_call_by_method(
 }
 
 // Get ID for an internal call invoker (with registration if needed)
-uint16_t InternalCalls::get_internal_call_invoker_id(InternalCallInvoker invoker)
+uint16_t InternalCalls::register_internal_call_invoker_id(InternalCallInvoker invoker)
 {
     auto it = g_internalCallInvokerIdMap.find(invoker);
     if (it != g_internalCallInvokerIdMap.end())
@@ -119,11 +119,10 @@ uint16_t InternalCalls::get_internal_call_invoker_id(InternalCallInvoker invoker
 }
 
 // Get internal call invoker by ID
-InternalCallInvoker InternalCalls::get_internal_call_invoker_by_id(uint16_t id)
+InternalCallInvoker InternalCalls::get_internal_call_invoker_by_id_unchecked(uint16_t id)
 {
-    if (id < g_internalCallInvokerIdList.size())
-        return g_internalCallInvokerIdList[id];
-    return nullptr;
+    assert(id < g_internalCallInvokerIdList.size() && "Invalid internal call invoker id");
+    return g_internalCallInvokerIdList[id];
 }
 
 // Initialize internal calls system

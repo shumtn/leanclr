@@ -631,6 +631,8 @@ size_t OpCodes::s_opsizes[static_cast<size_t>(OpCodeEnum::__Count)] = {
     sizeof(CallIntrinsicShort),
     sizeof(CallPInvoke),
     sizeof(CallPInvokeShort),
+    sizeof(CallAot),
+    sizeof(CallAotShort),
     sizeof(CallRuntimeImplemented),
     sizeof(CallRuntimeImplementedShort),
     sizeof(CalliInterp),
@@ -645,6 +647,10 @@ size_t OpCodes::s_opsizes[static_cast<size_t>(OpCodeEnum::__Count)] = {
     sizeof(NewObjInternalCallShort),
     sizeof(NewObjIntrinsic),
     sizeof(NewObjIntrinsicShort),
+    sizeof(NewObjAot),
+    sizeof(NewObjAotShort),
+    sizeof(NewValueTypeAot),
+    sizeof(NewValueTypeAotShort),
     sizeof(Throw),
     sizeof(ThrowShort),
     sizeof(Rethrow),
@@ -6347,11 +6353,28 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
         ir->frame_base = (uint8_t)inst.get_frame_base();
         return codes + sizeof(CallPInvokeShort);
     }
+    case OpCodeEnum::CallAot:
+    {
+        auto ir = (CallAot*)codes;
+        ir->__prefix = 251;
+        ir->__code = 235;
+        ir->method_idx = (uint16_t)inst.get_resolved_data_index();
+        ir->frame_base = (uint16_t)inst.get_frame_base();
+        return codes + sizeof(CallAot);
+    }
+    case OpCodeEnum::CallAotShort:
+    {
+        auto ir = (CallAotShort*)codes;
+        ir->__code = 220;
+        ir->method_idx = (uint8_t)inst.get_resolved_data_index();
+        ir->frame_base = (uint8_t)inst.get_frame_base();
+        return codes + sizeof(CallAotShort);
+    }
     case OpCodeEnum::CallRuntimeImplemented:
     {
         auto ir = (CallRuntimeImplemented*)codes;
         ir->__prefix = 251;
-        ir->__code = 235;
+        ir->__code = 236;
         ir->method_idx = (uint16_t)inst.get_resolved_data_index();
         ir->frame_base = (uint16_t)inst.get_frame_base();
         return codes + sizeof(CallRuntimeImplemented);
@@ -6359,7 +6382,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     case OpCodeEnum::CallRuntimeImplementedShort:
     {
         auto ir = (CallRuntimeImplementedShort*)codes;
-        ir->__code = 220;
+        ir->__code = 221;
         ir->method_idx = (uint8_t)inst.get_resolved_data_index();
         ir->frame_base = (uint8_t)inst.get_frame_base();
         return codes + sizeof(CallRuntimeImplementedShort);
@@ -6368,7 +6391,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (CalliInterp*)codes;
         ir->__prefix = 251;
-        ir->__code = 236;
+        ir->__code = 237;
         ir->method_sig_idx = (uint16_t)inst.get_resolved_data_index();
         ir->method_idx = (uint16_t)inst.get_var_arg3_eval_stack_idx();
         ir->frame_base = (uint16_t)inst.get_frame_base();
@@ -6377,7 +6400,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     case OpCodeEnum::CalliInterpShort:
     {
         auto ir = (CalliInterpShort*)codes;
-        ir->__code = 221;
+        ir->__code = 222;
         ir->method_sig_idx = (uint8_t)inst.get_resolved_data_index();
         ir->method_idx = (uint8_t)inst.get_var_arg3_eval_stack_idx();
         ir->frame_base = (uint8_t)inst.get_frame_base();
@@ -6387,7 +6410,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (BoxRefInplace*)codes;
         ir->__prefix = 251;
-        ir->__code = 237;
+        ir->__code = 238;
         ir->src = (uint16_t)inst.get_var_src_eval_stack_idx();
         ir->dst = (uint16_t)inst.get_var_dst_eval_stack_idx();
         ir->klass_idx = (uint16_t)inst.get_resolved_data_index();
@@ -6396,7 +6419,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     case OpCodeEnum::BoxRefInplaceShort:
     {
         auto ir = (BoxRefInplaceShort*)codes;
-        ir->__code = 222;
+        ir->__code = 223;
         ir->src = (uint8_t)inst.get_var_src_eval_stack_idx();
         ir->dst = (uint8_t)inst.get_var_dst_eval_stack_idx();
         ir->klass_idx = (uint8_t)inst.get_resolved_data_index();
@@ -6406,7 +6429,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (NewObjInterp*)codes;
         ir->__prefix = 251;
-        ir->__code = 238;
+        ir->__code = 239;
         ir->method_idx = (uint16_t)inst.get_resolved_data_index();
         ir->frame_base = (uint16_t)inst.get_frame_base();
         ir->total_params_stack_object_size = (uint32_t)inst.get_total_params_stack_object_size();
@@ -6415,7 +6438,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     case OpCodeEnum::NewObjInterpShort:
     {
         auto ir = (NewObjInterpShort*)codes;
-        ir->__code = 223;
+        ir->__code = 224;
         ir->method_idx = (uint8_t)inst.get_resolved_data_index();
         ir->frame_base = (uint8_t)inst.get_frame_base();
         ir->total_params_stack_object_size = (uint32_t)inst.get_total_params_stack_object_size();
@@ -6425,7 +6448,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (NewValueTypeInterp*)codes;
         ir->__prefix = 251;
-        ir->__code = 239;
+        ir->__code = 240;
         ir->method_idx = (uint16_t)inst.get_resolved_data_index();
         ir->frame_base = (uint16_t)inst.get_frame_base();
         ir->total_params_stack_object_size = (uint32_t)inst.get_total_params_stack_object_size();
@@ -6434,7 +6457,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     case OpCodeEnum::NewValueTypeInterpShort:
     {
         auto ir = (NewValueTypeInterpShort*)codes;
-        ir->__code = 224;
+        ir->__code = 225;
         ir->method_idx = (uint8_t)inst.get_resolved_data_index();
         ir->frame_base = (uint8_t)inst.get_frame_base();
         ir->total_params_stack_object_size = (uint32_t)inst.get_total_params_stack_object_size();
@@ -6444,7 +6467,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (NewObjInternalCall*)codes;
         ir->__prefix = 251;
-        ir->__code = 240;
+        ir->__code = 241;
         ir->method_idx = (uint16_t)inst.get_resolved_data_index();
         ir->invoker_idx = (uint16_t)inst.get_invoker_idx();
         ir->frame_base = (uint16_t)inst.get_frame_base();
@@ -6453,7 +6476,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     case OpCodeEnum::NewObjInternalCallShort:
     {
         auto ir = (NewObjInternalCallShort*)codes;
-        ir->__code = 225;
+        ir->__code = 226;
         ir->method_idx = (uint8_t)inst.get_resolved_data_index();
         ir->invoker_idx = (uint8_t)inst.get_invoker_idx();
         ir->frame_base = (uint8_t)inst.get_frame_base();
@@ -6463,7 +6486,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (NewObjIntrinsic*)codes;
         ir->__prefix = 251;
-        ir->__code = 241;
+        ir->__code = 242;
         ir->method_idx = (uint16_t)inst.get_resolved_data_index();
         ir->invoker_idx = (uint16_t)inst.get_invoker_idx();
         ir->frame_base = (uint16_t)inst.get_frame_base();
@@ -6472,24 +6495,62 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     case OpCodeEnum::NewObjIntrinsicShort:
     {
         auto ir = (NewObjIntrinsicShort*)codes;
-        ir->__code = 226;
+        ir->__code = 227;
         ir->method_idx = (uint8_t)inst.get_resolved_data_index();
         ir->invoker_idx = (uint8_t)inst.get_invoker_idx();
         ir->frame_base = (uint8_t)inst.get_frame_base();
         return codes + sizeof(NewObjIntrinsicShort);
     }
+    case OpCodeEnum::NewObjAot:
+    {
+        auto ir = (NewObjAot*)codes;
+        ir->__prefix = 251;
+        ir->__code = 243;
+        ir->method_idx = (uint16_t)inst.get_resolved_data_index();
+        ir->frame_base = (uint16_t)inst.get_frame_base();
+        ir->total_params_stack_object_size = (uint32_t)inst.get_total_params_stack_object_size();
+        return codes + sizeof(NewObjAot);
+    }
+    case OpCodeEnum::NewObjAotShort:
+    {
+        auto ir = (NewObjAotShort*)codes;
+        ir->__code = 228;
+        ir->method_idx = (uint8_t)inst.get_resolved_data_index();
+        ir->frame_base = (uint8_t)inst.get_frame_base();
+        ir->total_params_stack_object_size = (uint32_t)inst.get_total_params_stack_object_size();
+        return codes + sizeof(NewObjAotShort);
+    }
+    case OpCodeEnum::NewValueTypeAot:
+    {
+        auto ir = (NewValueTypeAot*)codes;
+        ir->__prefix = 251;
+        ir->__code = 244;
+        ir->method_idx = (uint16_t)inst.get_resolved_data_index();
+        ir->frame_base = (uint16_t)inst.get_frame_base();
+        ir->total_params_stack_object_size = (uint32_t)inst.get_total_params_stack_object_size();
+        return codes + sizeof(NewValueTypeAot);
+    }
+    case OpCodeEnum::NewValueTypeAotShort:
+    {
+        auto ir = (NewValueTypeAotShort*)codes;
+        ir->__code = 229;
+        ir->method_idx = (uint8_t)inst.get_resolved_data_index();
+        ir->frame_base = (uint8_t)inst.get_frame_base();
+        ir->total_params_stack_object_size = (uint32_t)inst.get_total_params_stack_object_size();
+        return codes + sizeof(NewValueTypeAotShort);
+    }
     case OpCodeEnum::Throw:
     {
         auto ir = (Throw*)codes;
         ir->__prefix = 251;
-        ir->__code = 242;
+        ir->__code = 245;
         ir->ex = (uint16_t)inst.get_var_src_eval_stack_idx();
         return codes + sizeof(Throw);
     }
     case OpCodeEnum::ThrowShort:
     {
         auto ir = (ThrowShort*)codes;
-        ir->__code = 227;
+        ir->__code = 230;
         ir->ex = (uint8_t)inst.get_var_src_eval_stack_idx();
         return codes + sizeof(ThrowShort);
     }
@@ -6497,20 +6558,20 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (Rethrow*)codes;
         ir->__prefix = 251;
-        ir->__code = 243;
+        ir->__code = 246;
         return codes + sizeof(Rethrow);
     }
     case OpCodeEnum::RethrowShort:
     {
         auto ir = (RethrowShort*)codes;
-        ir->__code = 228;
+        ir->__code = 231;
         return codes + sizeof(RethrowShort);
     }
     case OpCodeEnum::LeaveTryWithFinally:
     {
         auto ir = (LeaveTryWithFinally*)codes;
         ir->__prefix = 251;
-        ir->__code = 244;
+        ir->__code = 247;
         ir->first_finally_clause_index = (uint8_t)inst.get_first_finally_clause_index();
         ir->finally_clauses_count = (uint8_t)inst.get_finally_clauses_count();
         ir->target_offset = (int32_t)inst.get_branch_target_offset();
@@ -6519,7 +6580,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     case OpCodeEnum::LeaveTryWithFinallyShort:
     {
         auto ir = (LeaveTryWithFinallyShort*)codes;
-        ir->__code = 229;
+        ir->__code = 232;
         ir->first_finally_clause_index = (uint8_t)inst.get_first_finally_clause_index();
         ir->target_offset = (int8_t)inst.get_branch_target_offset();
         ir->finally_clauses_count = (uint8_t)inst.get_finally_clauses_count();
@@ -6529,7 +6590,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (LeaveCatchWithFinally*)codes;
         ir->__prefix = 251;
-        ir->__code = 245;
+        ir->__code = 248;
         ir->first_finally_clause_index = (uint8_t)inst.get_first_finally_clause_index();
         ir->finally_clauses_count = (uint8_t)inst.get_finally_clauses_count();
         ir->target_offset = (int32_t)inst.get_branch_target_offset();
@@ -6538,7 +6599,7 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     case OpCodeEnum::LeaveCatchWithFinallyShort:
     {
         auto ir = (LeaveCatchWithFinallyShort*)codes;
-        ir->__code = 230;
+        ir->__code = 233;
         ir->first_finally_clause_index = (uint8_t)inst.get_first_finally_clause_index();
         ir->target_offset = (int8_t)inst.get_branch_target_offset();
         ir->finally_clauses_count = (uint8_t)inst.get_finally_clauses_count();
@@ -6548,14 +6609,14 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (LeaveCatchWithoutFinally*)codes;
         ir->__prefix = 251;
-        ir->__code = 246;
+        ir->__code = 249;
         ir->target_offset = (int32_t)inst.get_branch_target_offset();
         return codes + sizeof(LeaveCatchWithoutFinally);
     }
     case OpCodeEnum::LeaveCatchWithoutFinallyShort:
     {
         auto ir = (LeaveCatchWithoutFinallyShort*)codes;
-        ir->__code = 231;
+        ir->__code = 234;
         ir->target_offset = (int8_t)inst.get_branch_target_offset();
         return codes + sizeof(LeaveCatchWithoutFinallyShort);
     }
@@ -6563,14 +6624,14 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (EndFilter*)codes;
         ir->__prefix = 251;
-        ir->__code = 247;
+        ir->__code = 250;
         ir->cond = (uint16_t)inst.get_var_src_eval_stack_idx();
         return codes + sizeof(EndFilter);
     }
     case OpCodeEnum::EndFilterShort:
     {
         auto ir = (EndFilterShort*)codes;
-        ir->__code = 232;
+        ir->__code = 235;
         ir->cond = (uint8_t)inst.get_var_src_eval_stack_idx();
         return codes + sizeof(EndFilterShort);
     }
@@ -6578,26 +6639,26 @@ uint8_t* OpCodes::write_instruction_to_data(uint8_t* codes, const GeneralInst& i
     {
         auto ir = (EndFinally*)codes;
         ir->__prefix = 251;
-        ir->__code = 248;
+        ir->__code = 251;
         return codes + sizeof(EndFinally);
     }
     case OpCodeEnum::EndFinallyShort:
     {
         auto ir = (EndFinallyShort*)codes;
-        ir->__code = 233;
+        ir->__code = 236;
         return codes + sizeof(EndFinallyShort);
     }
     case OpCodeEnum::EndFault:
     {
         auto ir = (EndFault*)codes;
         ir->__prefix = 251;
-        ir->__code = 249;
+        ir->__code = 252;
         return codes + sizeof(EndFault);
     }
     case OpCodeEnum::EndFaultShort:
     {
         auto ir = (EndFaultShort*)codes;
-        ir->__code = 234;
+        ir->__code = 237;
         return codes + sizeof(EndFaultShort);
     }
     case OpCodeEnum::GetEnumLongHashCode:

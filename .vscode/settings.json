@@ -6,10 +6,20 @@
     "editor.wordWrapColumn": 160,
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "ms-vscode.cpptools",
+    "dotnet.defaultSolution": "src/leanaot/LeanAOT.sln",
     "[cpp]": {
         "editor.defaultFormatter": "ms-vscode.cpptools"
     },
     "[c]": {
         "editor.defaultFormatter": "ms-vscode.cpptools"
-    }
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[csharp]": {
+        "editor.defaultFormatter": "ms-dotnettools.csharp"
+    },
+    "cmake.sourceDirectory": "${workspaceFolder}/src/runtime",
+    "terminal.integrated.defaultProfile.windows": "Command Prompt",
+    "dotnet.preferCSharpExtension": true
 }

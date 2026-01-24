@@ -12,6 +12,7 @@ namespace leanclr::vm
 
 // Constants
 const int32_t MAX_ARRAY_INDEX = INT32_MAX;
+const int32_t MAX_ARRAY_RANK = 32;
 
 // Helper: Calculate total byte size for array including elements
 static size_t get_array_total_byte_size(metadata::RtClass* klass, int32_t length)
@@ -25,10 +26,10 @@ static size_t get_array_total_byte_size(metadata::RtClass* klass, int32_t length
 
 RtResult<RtArray*> Array::new_empty_szarray_by_ele_klass(metadata::RtClass* ele_class)
 {
-    return new_array_from_ele_klass(ele_class, 0);
+    return new_szarray_from_ele_klass(ele_class, 0);
 }
 
-RtResult<RtArray*> Array::new_array_from_array_type(metadata::RtClass* klass, int32_t length)
+RtResult<RtArray*> Array::new_szarray_from_array_klass(metadata::RtClass* klass, int32_t length)
 {
     assert(klass);
 
@@ -46,9 +47,13 @@ RtResult<RtArray*> Array::new_array_from_array_type(metadata::RtClass* klass, in
     RET_OK(arr_obj);
 }
 
-RtResult<RtArray*> Array::new_array_from_ele_klass(metadata::RtClass* ele_class, int32_t length)
+RtResult<RtArray*> Array::new_szarray_from_ele_klass(metadata::RtClass* ele_class, int32_t length)
 {
     assert(ele_class);
+    if (length < 0)
+    {
+        RET_ERR(RtErr::Overflow);
+    }
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, klass, ArrayClass::get_szarray_class_from_element_class(ele_class));
     RET_ERR_ON_FAIL(Class::initialize_all(klass));
@@ -65,7 +70,7 @@ RtResult<RtArray*> Array::new_array_from_ele_klass(metadata::RtClass* ele_class,
     RET_OK(arr_obj);
 }
 
-RtResult<RtArray*> Array::new_mdarray(metadata::RtClass* arr_klass, const int32_t* lengths, const int32_t* lower_bounds)
+RtResult<RtArray*> Array::new_mdarray_from_array_klass(metadata::RtClass* arr_klass, const int32_t* lengths, const int32_t* lower_bounds)
 {
     assert(arr_klass && lengths);
 
@@ -83,25 +88,20 @@ RtResult<RtArray*> Array::new_mdarray(metadata::RtClass* arr_klass, const int32_
     {
         int32_t dimension_length = lengths[i];
         // Check for overflow
-        if (dimension_length > INT32_MAX / total_length)
+        if ((uint32_t)dimension_length > (uint32_t)MAX_ARRAY_INDEX / total_length)
         {
-            RET_ERR(core::RtErr::Overflow);
+            RET_ERR(RtErr::Overflow);
         }
         total_length *= dimension_length;
-    }
-
-    if (total_length > MAX_ARRAY_INDEX)
-    {
-        RET_ERR(core::RtErr::Overflow);
     }
 
     // Calculate data size
     metadata::RtClass* ele_klass = arr_klass->element_class;
     int32_t ele_size = static_cast<int32_t>(Class::get_stack_location_size(ele_klass));
 
-    if (ele_size > INT32_MAX / total_length)
+    if (ele_size > MAX_ARRAY_INDEX / total_length)
     {
-        RET_ERR(core::RtErr::Overflow);
+        RET_ERR(RtErr::Overflow);
     }
 
     int32_t total_data_bytes = total_length * ele_size;
@@ -127,13 +127,18 @@ RtResult<RtArray*> Array::new_mdarray(metadata::RtClass* arr_klass, const int32_
     RET_OK(arr_obj);
 }
 
-// Array information methods
-
-int32_t Array::get_array_length(const RtArray* array)
+RtResult<RtArray*> Array::new_mdarray_from_ele_klass(metadata::RtClass* ele_klass, int32_t rank, const int32_t* lengths, const int32_t* lower_bounds)
 {
-    assert(array);
-    return array->length;
+    assert(ele_klass && lengths);
+    if (rank < 1 || rank > MAX_ARRAY_RANK)
+    {
+        RET_ERR(RtErr::Overflow);
+    }
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, arr_klass, ArrayClass::get_array_class_from_element_klass(ele_klass, (uint8_t)rank));
+    return new_mdarray_from_array_klass(arr_klass, lengths, lower_bounds);
 }
+
+// Array information methods
 
 size_t Array::get_array_byte_length(const RtArray* array)
 {
@@ -141,24 +146,6 @@ size_t Array::get_array_byte_length(const RtArray* array)
     size_t ele_size = get_array_element_size(array);
     int32_t length = get_array_length(array);
     return ele_size * length;
-}
-
-bool Array::is_valid_index(const RtArray* array, int32_t index)
-{
-    assert(array);
-    int32_t length = get_array_length(array);
-    return (index >= 0) && (index < length);
-}
-
-bool Array::is_out_of_range(const RtArray* array, int32_t index)
-{
-    return !is_valid_index(array, index);
-}
-
-metadata::RtClass* Array::get_array_element_class(const RtArray* array)
-{
-    assert(array);
-    return array->klass->element_class;
 }
 
 size_t Array::get_array_element_size(const RtArray* array)
@@ -217,7 +204,7 @@ RtResult<int32_t> Array::get_array_length_at_dimension(const RtArray* array, siz
     case metadata::RtElementType::SZArray:
         if (dimension > 0)
         {
-            RET_ERR(core::RtErr::IndexOutOfRange);
+            RET_ERR(RtErr::IndexOutOfRange);
         }
         RET_OK(get_array_length(array));
 
@@ -227,13 +214,13 @@ RtResult<int32_t> Array::get_array_length_at_dimension(const RtArray* array, siz
         uint8_t rank = arr_type->rank;
         if (dimension >= rank)
         {
-            RET_ERR(core::RtErr::IndexOutOfRange);
+            RET_ERR(RtErr::IndexOutOfRange);
         }
         RET_OK(array->bounds[dimension].length);
     }
 
     default:
-        RET_ERR(core::RtErr::InvalidCast);
+        RET_ERR(RtErr::InvalidCast);
     }
 }
 
@@ -249,7 +236,7 @@ RtResult<int32_t> Array::get_array_lower_bound_at_dimension(const RtArray* array
     case metadata::RtElementType::SZArray:
         if (dimension > 0)
         {
-            RET_ERR(core::RtErr::IndexOutOfRange);
+            RET_ERR(RtErr::IndexOutOfRange);
         }
         RET_OK(0);
 
@@ -259,13 +246,13 @@ RtResult<int32_t> Array::get_array_lower_bound_at_dimension(const RtArray* array
         uint8_t rank = arr_type->rank;
         if (dimension >= rank)
         {
-            RET_ERR(core::RtErr::IndexOutOfRange);
+            RET_ERR(RtErr::IndexOutOfRange);
         }
         RET_OK(array->bounds[dimension].lower_bound);
     }
 
     default:
-        RET_ERR(core::RtErr::InvalidCast);
+        RET_ERR(RtErr::InvalidCast);
     }
 }
 
@@ -287,7 +274,7 @@ RtResult<int32_t> Array::get_global_index_from_indices(const RtArray* arr, RtArr
     case metadata::RtElementType::SZArray:
         if (indice_length != 1)
         {
-            RET_ERR(core::RtErr::ArgumentNull);
+            RET_ERR(RtErr::ArgumentNull);
         }
         index = get_array_data_at<int32_t>(indices, 0);
         break;
@@ -297,7 +284,7 @@ RtResult<int32_t> Array::get_global_index_from_indices(const RtArray* arr, RtArr
         const metadata::RtArrayType* arr_type = type_sig->data.array_type;
         if (arr_type->rank != indice_length)
         {
-            RET_ERR(core::RtErr::ArgumentNull);
+            RET_ERR(RtErr::ArgumentNull);
         }
 
         int32_t offset = 0;
@@ -309,9 +296,9 @@ RtResult<int32_t> Array::get_global_index_from_indices(const RtArray* arr, RtArr
             const ArrayBounds* bound = &bounds[i];
             int32_t index_relate_to_lower = idx - bound->lower_bound;
 
-            if (index_relate_to_lower >= bound->length)
+            if ((uint32_t)index_relate_to_lower >= (uint32_t)bound->length)
             {
-                RET_ERR(core::RtErr::IndexOutOfRange);
+                RET_ERR(RtErr::IndexOutOfRange);
             }
 
             offset = offset * bound->length + index_relate_to_lower;
@@ -321,7 +308,7 @@ RtResult<int32_t> Array::get_global_index_from_indices(const RtArray* arr, RtArr
     }
 
     default:
-        RET_ERR(core::RtErr::InvalidCast);
+        RET_ERR(RtErr::InvalidCast);
     }
 
     RET_OK(index);
@@ -348,9 +335,41 @@ RtResult<int32_t> Array::get_mdarray_global_index_from_indices2(const RtArray* a
         const ArrayBounds* bound = &bounds[i];
         int32_t index_relate_to_lower = idx - bound->lower_bound;
 
-        if (index_relate_to_lower >= bound->length)
+        if ((uint32_t)index_relate_to_lower >= (uint32_t)bound->length)
         {
-            RET_ERR(core::RtErr::IndexOutOfRange);
+            RET_ERR(RtErr::IndexOutOfRange);
+        }
+
+        offset = offset * bound->length + index_relate_to_lower;
+    }
+
+    RET_OK(offset);
+}
+
+RtResult<int32_t> Array::get_mdarray_global_index_from_indices3(const RtArray* arr, int32_t* indices)
+{
+    assert(arr && indices);
+
+    metadata::RtClass* klass = arr->klass;
+    const metadata::RtTypeSig* type_sig = klass->by_val;
+
+    assert(type_sig->ele_type == metadata::RtElementType::Array);
+
+    const metadata::RtArrayType* arr_type = type_sig->data.array_type;
+    uint8_t rank = arr_type->rank;
+
+    int32_t offset = 0;
+    const ArrayBounds* bounds = arr->bounds;
+
+    for (uint8_t i = 0; i < rank; ++i)
+    {
+        int32_t idx = indices[i];
+        const ArrayBounds* bound = &bounds[i];
+        int32_t index_relate_to_lower = idx - bound->lower_bound;
+
+        if ((uint32_t)index_relate_to_lower >= (uint32_t)bound->length)
+        {
+            RET_ERR(RtErr::IndexOutOfRange);
         }
 
         offset = offset * bound->length + index_relate_to_lower;
@@ -370,7 +389,7 @@ RtResultVoid Array::szarray_new_invoker(metadata::RtManagedMethodPointer method_
     int32_t length = interp::EvalStackOp::get_param<int32_t>(params, 0);
     metadata::RtClass* klass = const_cast<metadata::RtClass*>(method->parent);
 
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr, new_array_from_array_type(klass, length));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr, new_szarray_from_array_klass(klass, length));
     interp::EvalStackOp::set_return(ret, arr);
     RET_VOID_OK();
 }
@@ -436,7 +455,7 @@ RtResultVoid Array::newmdarray_lengths_invoker(metadata::RtManagedMethodPointer 
         i32_lengths[i] = interp::EvalStackOp::get_param<int32_t>(params, i);
     }
 
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr, new_mdarray(const_cast<metadata::RtClass*>(method->parent), i32_lengths, nullptr));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr, new_mdarray_from_array_klass(const_cast<metadata::RtClass*>(method->parent), i32_lengths, nullptr));
     interp::EvalStackOp::set_return(ret, arr);
     RET_VOID_OK();
 }
@@ -457,7 +476,8 @@ RtResultVoid Array::newmdarray_lengths_lower_bounds_invoker(metadata::RtManagedM
         i32_lower_bounds[i] = interp::EvalStackOp::get_param<int32_t>(params, i + param_count);
     }
 
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr, new_mdarray(const_cast<metadata::RtClass*>(method->parent), i32_lengths, i32_lower_bounds));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr,
+                                            new_mdarray_from_array_klass(const_cast<metadata::RtClass*>(method->parent), i32_lengths, i32_lower_bounds));
     interp::EvalStackOp::set_return(ret, arr);
 
     RET_VOID_OK();
@@ -520,7 +540,7 @@ RtResult<RtArray*> Array::clone(RtArray* old_arr)
 
     if (!new_arr)
     {
-        RET_ERR(core::RtErr::OutOfMemory);
+        RET_ERR(RtErr::OutOfMemory);
     }
     std::memcpy(new_arr, old_arr, total_bytes);
 

@@ -53,7 +53,7 @@ class Intrinsics
     static RtResult<IntrinsicInvoker> get_newobj_intrinsic_by_method(const metadata::RtMethodInfo* method);
 
     // Intrinsic invoker ID management
-    static uint16_t get_intrinsic_invoker_id(IntrinsicInvoker invoker);
-    static IntrinsicInvoker get_intrinsic_invoker_by_id(uint16_t id);
+    static uint16_t register_intrinsic_invoker_id(IntrinsicInvoker invoker);
+    static IntrinsicInvoker get_intrinsic_invoker_by_id_unchecked(uint16_t id);
 };
 }; // namespace leanclr::vm

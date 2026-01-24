@@ -234,7 +234,7 @@ static RtResultVoid get_manifest_module_internal_invoker(metadata::RtManagedMeth
 RtResult<vm::RtArray*> SystemReflectionRuntimeAssembly::get_modules_internal(vm::RtReflectionAssembly* ref_ass)
 {
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, module_arr,
-                                            vm::Array::new_array_from_ele_klass(vm::Class::get_corlib_types().cls_reflection_module, 1));
+                                            vm::Array::new_szarray_from_ele_klass(vm::Class::get_corlib_types().cls_reflection_module, 1));
     metadata::RtAssembly* ass = ref_ass->assembly;
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtReflectionModule*, ref_module, vm::Reflection::get_module_reflection_object(ass->mod));
     vm::Array::set_array_data_at<vm::RtReflectionModule*>(module_arr, 0, ref_module);

@@ -1359,7 +1359,7 @@ RtResultVoid Class::setup_methods_typedef(metadata::RtClass* klass)
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(InvokeTypeAndMethod, invoker_type_and_method, Shim::get_invoker(method));
         method->invoke_method_ptr = invoker_type_and_method.invoker;
         method->invoker_type = invoker_type_and_method.invoker_type;
-        method->virtual_invoke_method_ptr = Shim::get_virtual_invoker(method, invoker_type_and_method);
+        method->virtual_invoke_method_ptr = invoker_type_and_method.virtual_invoker;
         method->method_ptr = Shim::get_method_pointer(method);
         methods[i] = method;
     }

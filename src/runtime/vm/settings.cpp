@@ -17,6 +17,8 @@ static DebuggerLogFunc g_debugger_log_function = default_debugger_log_function;
 
 static ReportUnhandledExceptionFunc g_report_unhandled_exception_function = nullptr;
 
+static const metadata::RtAotModulesData* g_aot_modules_data = nullptr;
+
 static utils::StringBuilder g_debugger_log_buffer;
 
 static void default_debugger_log_function(int32_t level, const uint16_t* category, size_t category_len, const uint16_t* message, size_t message_len)
@@ -78,6 +80,16 @@ void Settings::set_report_unhandled_exception_function(ReportUnhandledExceptionF
 ReportUnhandledExceptionFunc Settings::get_report_unhandled_exception_function()
 {
     return g_report_unhandled_exception_function;
+}
+
+const metadata::RtAotModulesData* Settings::get_aot_modules_data()
+{
+    return g_aot_modules_data;
+}
+
+void Settings::set_aot_modules_data(const metadata::RtAotModulesData* data)
+{
+    g_aot_modules_data = data;
 }
 
 void Settings::set_command_line_arguments(int32_t argc, const char** argv)

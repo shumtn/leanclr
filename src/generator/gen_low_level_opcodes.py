@@ -256,6 +256,7 @@ def gen_short_instruction_cases(low_level_opcodes, interpreter_cpp_path):
                 block_new = re.sub(f'LEANCLR_CASE_BEGIN{prefix}\\((\\w+)\\)', lambda m: f'LEANCLR_CASE_BEGIN0({m.group(1)}Short)', block_new)
                 block_new = block_new.replace(f'LEANCLR_CASE_END{prefix}()', 'LEANCLR_CASE_END0()')
                 block_new = '\n'.join([line[8:] if line.startswith('        ') else line for line in block_new.splitlines()])
+                block_new = block_new.replace(f'reinterpret_cast<const ll::{long_name}*>', f'reinterpret_cast<const ll::{long_name}Short*>')
                 blocks.append(block_new)
                 found = True
                 break
@@ -266,6 +267,7 @@ def gen_short_instruction_cases(low_level_opcodes, interpreter_cpp_path):
                 block_new = re.sub(f'LEANCLR_CASE_BEGIN_LITE{prefix}\\((\\w+)\\)', lambda m: f'LEANCLR_CASE_BEGIN_LITE0({m.group(1)}Short)', block_new)
                 block_new = block_new.replace(f'LEANCLR_CASE_END_LITE{prefix}()', 'LEANCLR_CASE_END_LITE0()')
                 block_new = '\n'.join([line[8:] if line.startswith('        ') else line for line in block_new.splitlines()])
+                block_new = block_new.replace(f'reinterpret_cast<const ll::{long_name}*>', f'reinterpret_cast<const ll::{long_name}Short*>')
                 blocks.append(block_new)
                 found = True
                 break

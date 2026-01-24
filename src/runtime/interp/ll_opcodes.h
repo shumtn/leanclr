@@ -630,6 +630,8 @@ enum class OpCodeEnum
     CallIntrinsicShort,
     CallPInvoke,
     CallPInvokeShort,
+    CallAot,
+    CallAotShort,
     CallRuntimeImplemented,
     CallRuntimeImplementedShort,
     CalliInterp,
@@ -644,6 +646,10 @@ enum class OpCodeEnum
     NewObjInternalCallShort,
     NewObjIntrinsic,
     NewObjIntrinsicShort,
+    NewObjAot,
+    NewObjAotShort,
+    NewValueTypeAot,
+    NewValueTypeAotShort,
     Throw,
     ThrowShort,
     Rethrow,
@@ -889,24 +895,24 @@ enum class OpCodeValue0 : uint8_t
     CallInternalCallShort = 0xD9,
     CallIntrinsicShort = 0xDA,
     CallPInvokeShort = 0xDB,
-    CallRuntimeImplementedShort = 0xDC,
-    CalliInterpShort = 0xDD,
-    BoxRefInplaceShort = 0xDE,
-    NewObjInterpShort = 0xDF,
-    NewValueTypeInterpShort = 0xE0,
-    NewObjInternalCallShort = 0xE1,
-    NewObjIntrinsicShort = 0xE2,
-    ThrowShort = 0xE3,
-    RethrowShort = 0xE4,
-    LeaveTryWithFinallyShort = 0xE5,
-    LeaveCatchWithFinallyShort = 0xE6,
-    LeaveCatchWithoutFinallyShort = 0xE7,
-    EndFilterShort = 0xE8,
-    EndFinallyShort = 0xE9,
-    EndFaultShort = 0xEA,
-    __UnusedEB = 0xEB,
-    __UnusedEC = 0xEC,
-    __UnusedED = 0xED,
+    CallAotShort = 0xDC,
+    CallRuntimeImplementedShort = 0xDD,
+    CalliInterpShort = 0xDE,
+    BoxRefInplaceShort = 0xDF,
+    NewObjInterpShort = 0xE0,
+    NewValueTypeInterpShort = 0xE1,
+    NewObjInternalCallShort = 0xE2,
+    NewObjIntrinsicShort = 0xE3,
+    NewObjAotShort = 0xE4,
+    NewValueTypeAotShort = 0xE5,
+    ThrowShort = 0xE6,
+    RethrowShort = 0xE7,
+    LeaveTryWithFinallyShort = 0xE8,
+    LeaveCatchWithFinallyShort = 0xE9,
+    LeaveCatchWithoutFinallyShort = 0xEA,
+    EndFilterShort = 0xEB,
+    EndFinallyShort = 0xEC,
+    EndFaultShort = 0xED,
     __UnusedEE = 0xEE,
     __UnusedEF = 0xEF,
     __UnusedF0 = 0xF0,
@@ -1167,21 +1173,24 @@ enum class OpCodeValue1 : uint8_t
     CallInternalCall = 0xE8,
     CallIntrinsic = 0xE9,
     CallPInvoke = 0xEA,
-    CallRuntimeImplemented = 0xEB,
-    CalliInterp = 0xEC,
-    BoxRefInplace = 0xED,
-    NewObjInterp = 0xEE,
-    NewValueTypeInterp = 0xEF,
-    NewObjInternalCall = 0xF0,
-    NewObjIntrinsic = 0xF1,
-    Throw = 0xF2,
-    Rethrow = 0xF3,
-    LeaveTryWithFinally = 0xF4,
-    LeaveCatchWithFinally = 0xF5,
-    LeaveCatchWithoutFinally = 0xF6,
-    EndFilter = 0xF7,
-    EndFinally = 0xF8,
-    EndFault = 0xF9,
+    CallAot = 0xEB,
+    CallRuntimeImplemented = 0xEC,
+    CalliInterp = 0xED,
+    BoxRefInplace = 0xEE,
+    NewObjInterp = 0xEF,
+    NewValueTypeInterp = 0xF0,
+    NewObjInternalCall = 0xF1,
+    NewObjIntrinsic = 0xF2,
+    NewObjAot = 0xF3,
+    NewValueTypeAot = 0xF4,
+    Throw = 0xF5,
+    Rethrow = 0xF6,
+    LeaveTryWithFinally = 0xF7,
+    LeaveCatchWithFinally = 0xF8,
+    LeaveCatchWithoutFinally = 0xF9,
+    EndFilter = 0xFA,
+    EndFinally = 0xFB,
+    EndFault = 0xFC,
 
     //}}LOW_LEVEL_OPCODE1
 };
@@ -7041,6 +7050,24 @@ struct CallPInvokeShort
     uint8_t __padding_3;
 };
 
+struct CallAot
+{
+    uint8_t __prefix;
+    uint8_t __code;
+    uint16_t method_idx;
+    uint16_t frame_base;
+    uint8_t __padding_6;
+    uint8_t __padding_7;
+};
+
+struct CallAotShort
+{
+    uint8_t __code;
+    uint8_t method_idx;
+    uint8_t frame_base;
+    uint8_t __padding_3;
+};
+
 struct CallRuntimeImplemented
 {
     uint8_t __prefix;
@@ -7165,6 +7192,46 @@ struct NewObjIntrinsicShort
     uint8_t method_idx;
     uint8_t invoker_idx;
     uint8_t frame_base;
+};
+
+struct NewObjAot
+{
+    uint8_t __prefix;
+    uint8_t __code;
+    uint16_t method_idx;
+    uint16_t frame_base;
+    uint8_t __padding_6;
+    uint8_t __padding_7;
+    uint32_t total_params_stack_object_size;
+};
+
+struct NewObjAotShort
+{
+    uint8_t __code;
+    uint8_t method_idx;
+    uint8_t frame_base;
+    uint8_t __padding_3;
+    uint32_t total_params_stack_object_size;
+};
+
+struct NewValueTypeAot
+{
+    uint8_t __prefix;
+    uint8_t __code;
+    uint16_t method_idx;
+    uint16_t frame_base;
+    uint8_t __padding_6;
+    uint8_t __padding_7;
+    uint32_t total_params_stack_object_size;
+};
+
+struct NewValueTypeAotShort
+{
+    uint8_t __code;
+    uint8_t method_idx;
+    uint8_t frame_base;
+    uint8_t __padding_3;
+    uint32_t total_params_stack_object_size;
 };
 
 struct Throw
@@ -7305,6 +7372,7 @@ struct GetEnumLongHashCode
     uint8_t __padding_6;
     uint8_t __padding_7;
 };
+
 
 //}}LOW_LEVEL_INSTRUCTION_STRUCTSS
 

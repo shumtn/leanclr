@@ -97,7 +97,7 @@ RtResult<vm::RtArray*> SystemAppDomain::get_assemblies(bool ref_only)
 {
     utils::Span<metadata::RtModuleDef*> mods = vm::AppDomain::get_modules();
     metadata::RtClass* cls_assembly = vm::Class::get_corlib_types().cls_reflection_assembly;
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, ass_arr, vm::Array::new_array_from_ele_klass(cls_assembly, static_cast<int32_t>(mods.size())));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, ass_arr, vm::Array::new_szarray_from_ele_klass(cls_assembly, static_cast<int32_t>(mods.size())));
     for (size_t i = 0; i < mods.size(); ++i)
     {
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtReflectionAssembly*, reflection_assembly,

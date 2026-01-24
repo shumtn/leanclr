@@ -11,20 +11,39 @@ class Array
   public:
     // Array creation methods
     static RtResult<RtArray*> new_empty_szarray_by_ele_klass(metadata::RtClass* ele_class);
-    static RtResult<RtArray*> new_array_from_array_type(metadata::RtClass* klass, int32_t length);
-    static RtResult<RtArray*> new_array_from_ele_klass(metadata::RtClass* ele_class, int32_t length);
-    static RtResult<RtArray*> new_mdarray(metadata::RtClass* arr_klass, const int32_t* lengths, const int32_t* lower_bounds);
+    static RtResult<RtArray*> new_szarray_from_array_klass(metadata::RtClass* klass, int32_t length);
+    static RtResult<RtArray*> new_szarray_from_ele_klass(metadata::RtClass* ele_class, int32_t length);
+    static RtResult<RtArray*> new_mdarray_from_array_klass(metadata::RtClass* arr_klass, const int32_t* lengths, const int32_t* lower_bounds);
+    static RtResult<RtArray*> new_mdarray_from_ele_klass(metadata::RtClass* ele_klass, int32_t rank, const int32_t* lengths, const int32_t* lower_bounds);
 
     // Array information methods
-    static int32_t get_array_length(const RtArray* array);
+    static int32_t get_array_length(const RtArray* array)
+    {
+        assert(array);
+        return array->length;
+    }
+
     static size_t get_array_byte_length(const RtArray* array);
     static size_t get_array_element_size(const RtArray* array);
     static size_t get_array_element_size_by_klass(metadata::RtClass* array_klass);
-    static metadata::RtClass* get_array_element_class(const RtArray* array);
+    static metadata::RtClass* get_array_element_class(const RtArray* array)
+    {
+        assert(array);
+        return array->klass->element_class;
+    }
 
     // Array index validation
-    static bool is_valid_index(const RtArray* array, int32_t index);
-    static bool is_out_of_range(const RtArray* array, int32_t index);
+    static bool is_valid_index(const RtArray* array, int32_t index)
+    {
+        assert(array);
+        int32_t length = get_array_length(array);
+        return (uint32_t)index < (uint32_t)length;
+    }
+
+    static bool is_out_of_range(const RtArray* array, int32_t index)
+    {
+        return !is_valid_index(array, index);
+    }
 
     // Array data access methods
     template <typename T>
@@ -70,6 +89,7 @@ class Array
     static RtResult<int32_t> get_array_lower_bound_at_dimension(const RtArray* array, size_t dimension);
     static RtResult<int32_t> get_global_index_from_indices(const RtArray* arr, RtArray* indices);
     static RtResult<int32_t> get_mdarray_global_index_from_indices2(const RtArray* arr, const interp::RtStackObject* indices);
+    static RtResult<int32_t> get_mdarray_global_index_from_indices3(const RtArray* arr, int32_t* indices);
 
     // Method invoker implementations
     static RtResultVoid szarray_new_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,

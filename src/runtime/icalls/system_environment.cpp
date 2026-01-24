@@ -347,7 +347,7 @@ static vm::InternalCallEntry s_internal_call_entries[] = {
     {"System.Environment::set_ExitCode", nullptr, set_exit_code_invoker},
     {"System.Environment::get_HasShutdownStarted", nullptr, get_has_shutdown_started_invoker},
     {"System.Environment::get_MachineName", nullptr, get_machine_name_invoker},
-    {"System.Environment::get_NewLine", nullptr, get_new_line_invoker},
+    {"System.Environment::GetNewLine", nullptr, get_new_line_invoker},
     {"System.Environment::get_Platform", nullptr, get_platform_invoker},
     {"System.Environment::GetOSVersionString", nullptr, get_os_version_string_invoker},
     {"System.Environment::get_TickCount", nullptr, get_tick_count_invoker},

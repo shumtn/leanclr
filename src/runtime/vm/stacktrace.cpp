@@ -42,7 +42,7 @@ RtResultVoid StackTrace::setup_trace_ips(RtException* ex)
         }
     }
     metadata::RtClass* cls_stackframe = Class::get_corlib_types().cls_stackframe;
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, trace_ips, Array::new_array_from_ele_klass(cls_stackframe, static_cast<int32_t>(trace_frames.size())));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, trace_ips, Array::new_szarray_from_ele_klass(cls_stackframe, static_cast<int32_t>(trace_frames.size())));
     for (size_t i = 0, frame_count = trace_frames.size(); i < frame_count; ++i)
     {
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtObject*, stackframe_obj, Object::new_object(cls_stackframe));
@@ -134,7 +134,7 @@ RtResult<RtArray*> StackTrace::get_stack_trace(RtException* ex, int32_t skip_fra
         return Array::new_empty_szarray_by_ele_klass(cls_stackframe);
     }
 
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, result_array, Array::new_array_from_ele_klass(cls_stackframe, stack_count - skip_frames));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, result_array, Array::new_szarray_from_ele_klass(cls_stackframe, stack_count - skip_frames));
     for (int32_t i = skip_frames; i < stack_count; ++i)
     {
         RtObject* frame_obj = Array::get_array_data_at<RtObject*>(ex->trace_ips, i);

@@ -30,7 +30,7 @@ static RtResultVoid get_rank_invoker(metadata::RtManagedMethodPointer, const met
 }
 
 /// @icall: System.Array::GetLength
-RtResult<int32_t> SystemArray::get_length(vm::RtArray* arr, size_t dimension)
+RtResult<int32_t> SystemArray::get_length(vm::RtArray* arr, int32_t dimension)
 {
     return vm::Array::get_array_length_at_dimension(arr, dimension);
 }
@@ -39,14 +39,14 @@ static RtResultVoid get_length_invoker(metadata::RtManagedMethodPointer, const m
                                        interp::RtStackObject* ret)
 {
     auto arr = EvalStackOp::get_param<vm::RtArray*>(params, 0);
-    size_t dimension = EvalStackOp::get_param<size_t>(params, 1);
+    int32_t dimension = EvalStackOp::get_param<int32_t>(params, 1);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(int32_t, length, SystemArray::get_length(arr, dimension));
     EvalStackOp::set_return(ret, length);
     RET_VOID_OK();
 }
 
 /// @icall: System.Array::GetLowerBound
-RtResult<int32_t> SystemArray::get_lower_bound(vm::RtArray* arr, size_t dimension)
+RtResult<int32_t> SystemArray::get_lower_bound(vm::RtArray* arr, int32_t dimension)
 {
     return vm::Array::get_array_lower_bound_at_dimension(arr, dimension);
 }
@@ -56,7 +56,7 @@ static RtResultVoid get_lower_bound_invoker(metadata::RtManagedMethodPointer, co
 {
     auto arr = EvalStackOp::get_param<vm::RtArray*>(params, 0);
     int32_t dimension = EvalStackOp::get_param<int32_t>(params, 1);
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(int32_t, lower_bound, SystemArray::get_lower_bound(arr, static_cast<size_t>(dimension)));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(int32_t, lower_bound, SystemArray::get_lower_bound(arr, dimension));
     EvalStackOp::set_return(ret, lower_bound);
     RET_VOID_OK();
 }
@@ -280,14 +280,12 @@ RtResult<vm::RtArray*> SystemArray::create_instance_impl(vm::RtReflectionType* e
     // Single-dimensional zero-based array
     if (dimension == 1 && (lower_bounds == nullptr || vm::Array::get_array_data_at<int32_t>(lower_bounds, 0) == 0))
     {
-        return vm::Array::new_array_from_ele_klass(ele_klass, *length_indices);
+        return vm::Array::new_szarray_from_ele_klass(ele_klass, *length_indices);
     }
     else
     {
         // Multi-dimensional or non-zero-based array
-        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, arr_klass,
-                                                vm::ArrayClass::get_array_class_from_element_klass(ele_klass, static_cast<uint8_t>(dimension)));
-        return vm::Array::new_mdarray(arr_klass, length_indices, lower_bound_indices);
+        return vm::Array::new_mdarray_from_ele_klass(ele_klass, static_cast<uint8_t>(dimension), length_indices, lower_bound_indices);
     }
 }
 

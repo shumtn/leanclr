@@ -285,7 +285,7 @@ RtResult<const void*> Object::unbox_ex(const RtObject* obj, metadata::RtClass* u
 }
 
 // Type checking: is obj an instance of class?
-const RtObject* Object::is_inst(const RtObject* obj, metadata::RtClass* klass)
+RtObject* Object::is_inst(RtObject* obj, metadata::RtClass* klass)
 {
     assert(obj && klass);
 
@@ -298,7 +298,7 @@ const RtObject* Object::is_inst(const RtObject* obj, metadata::RtClass* klass)
 }
 
 // Type casting: cast obj to class (or null if incompatible)
-const RtObject* Object::cast_class(const RtObject* obj, metadata::RtClass* klass)
+RtObject* Object::cast_class(RtObject* obj, metadata::RtClass* klass)
 {
     assert(obj && klass);
 

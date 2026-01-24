@@ -3,6 +3,7 @@
 #include "il_opcodes.h"
 #include "metadata/module_def.h"
 #include "metadata/generic_metadata.h"
+#include "metadata/aot_module.h"
 #include "basic_block_splitter.h"
 #include "vm/method.h"
 #include "vm/class.h"
@@ -1126,6 +1127,9 @@ RtResultVoid Transformer::add_call_common(const metadata::RtMethodInfo* method, 
     case metadata::RtInvokerType::PInvoke:
         opcode = OpCodeEnum::CallPInvoke;
         break;
+    case metadata::RtInvokerType::Aot:
+        opcode = OpCodeEnum::CallAot;
+        break;
     case metadata::RtInvokerType::RuntimeImpl:
         opcode = OpCodeEnum::CallRuntimeImplemented;
         break;
@@ -1148,11 +1152,11 @@ RtResultVoid Transformer::add_call_common(const metadata::RtMethodInfo* method, 
     ir->set_prefix(_prefix);
     if (invoker_type == metadata::RtInvokerType::NewObjIntrinsic)
     {
-        ir->set_invoker_idx(vm::Intrinsics::get_intrinsic_invoker_id(invoker));
+        ir->set_invoker_idx(vm::Intrinsics::register_intrinsic_invoker_id(invoker));
     }
     else if (invoker_type == metadata::RtInvokerType::NewObjInternalCall)
     {
-        ir->set_invoker_idx(vm::InternalCalls::get_internal_call_invoker_id(invoker));
+        ir->set_invoker_idx(vm::InternalCalls::register_internal_call_invoker_id(invoker));
     }
 
     if (is_new_obj)
@@ -1234,7 +1238,7 @@ RtResultVoid Transformer::add_newobj(const metadata::RtMethodInfo* method)
     if (handle_succ)
         RET_VOID_OK();
 
-    assert(target_method->invoker_type == metadata::RtInvokerType::Interpreter);
+    assert(target_method->invoker_type == metadata::RtInvokerType::Interpreter || target_method->invoker_type == metadata::RtInvokerType::Aot);
     // For regular newobj, pop parameters in reverse order
     size_t param_count = vm::Method::get_param_count_exclude_this(target_method);
     const Variable** params = param_count > 0 ? _pool->calloc_any<const Variable*>(param_count) : nullptr;
@@ -1259,7 +1263,7 @@ RtResultVoid Transformer::add_newobj(const metadata::RtMethodInfo* method)
     }
 
     size_t total_param_stack_object_size = old_eval_stack_top - get_cur_eval_stack_top();
-    GeneralInst* ir = create_add_inst(OpCodeEnum::NewObj);
+    GeneralInst* ir = create_add_inst(target_method->invoker_type == metadata::RtInvokerType::Interpreter ? OpCodeEnum::NewObj : OpCodeEnum::NewObjAot);
     ir->set_newobj_method_and_params(target_method, get_cur_eval_stack_top(), total_param_stack_object_size, params);
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(Variable*, obj_var, push_class_to_eval_stack(klass));
@@ -1669,7 +1673,11 @@ RtResultVoid Transformer::add_box(metadata::RtClass* klass)
 {
     if (!vm::Class::is_value_type(klass))
     {
-        return add_isinst(klass);
+        // return add_isinst(klass);
+        // do nothing for boxing of reference types, just push the reference back to eval stack
+        RET_ERR_ON_FAIL(pop_eval_stack());
+        RET_ERR_ON_FAIL(push_typesig_to_eval_stack(klass->by_val));
+        RET_VOID_OK();
     }
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const Variable*, val, pop_eval_stack());
 

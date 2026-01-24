@@ -25,21 +25,25 @@ class Settings
     static FileLoader get_file_loader();
     static void set_file_loader(FileLoader loader);
 
-    static void set_command_line_arguments(int32_t argc, const char** argv);
     static void get_command_line_arguments(int32_t& argc, const char**& argv);
+    static void set_command_line_arguments(int32_t argc, const char** argv);
 
     static size_t get_default_eval_stack_object_count();
     static void set_default_eval_stack_object_count(size_t count);
+
     static size_t get_default_frame_stack_size();
     static void set_default_frame_stack_size(size_t size);
 
-    static void set_internal_functions_initializer(InternalFunctionInitializer initializer);
     static InternalFunctionInitializer get_internal_functions_initializer();
+    static void set_internal_functions_initializer(InternalFunctionInitializer initializer);
 
-    static void set_debugger_log_function(DebuggerLogFunc log_func);
     static DebuggerLogFunc get_debugger_log_function();
+    static void set_debugger_log_function(DebuggerLogFunc log_func);
 
-    static void set_report_unhandled_exception_function(ReportUnhandledExceptionFunc func);
     static ReportUnhandledExceptionFunc get_report_unhandled_exception_function();
+    static void set_report_unhandled_exception_function(ReportUnhandledExceptionFunc func);
+
+    static const metadata::RtAotModulesData* get_aot_modules_data();
+    static void set_aot_modules_data(const metadata::RtAotModulesData* modules_data);
 };
 } // namespace leanclr::vm

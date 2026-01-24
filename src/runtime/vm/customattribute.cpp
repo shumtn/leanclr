@@ -445,7 +445,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
                 metadata::RtTypeSig ele_type_sig{};
                 ele_type_sig.ele_type = ele_type;
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, ele_klass, Class::get_class_from_typesig(&ele_type_sig));
-                DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, elem_arr, Array::new_array_from_ele_klass(ele_klass, (int32_t)num_elems));
+                DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, elem_arr, Array::new_szarray_from_ele_klass(ele_klass, (int32_t)num_elems));
                 uint32_t ele_size = Array::get_array_element_size(elem_arr);
                 uint8_t* arr_data_ptr = Array::get_array_data_start_as<uint8_t>(elem_arr);
                 for (uint32_t i = 0; i < num_elems; ++i)
@@ -499,7 +499,7 @@ static RtResult<FixedArg> read_fixed_arg(metadata::RtModuleDef* mod, const metad
         {
             const metadata::RtTypeSig* ele_type_sig = param_type->data.element_type;
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, ele_klass, Class::get_class_from_typesig(ele_type_sig));
-            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, elem_arr, Array::new_array_from_ele_klass(ele_klass, (int32_t)num_elems));
+            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, elem_arr, Array::new_szarray_from_ele_klass(ele_klass, (int32_t)num_elems));
 
             uint32_t ele_size = Array::get_array_element_size(elem_arr);
             uint8_t* arr_data_ptr = Array::get_array_data_start_as<uint8_t>(elem_arr);
@@ -891,7 +891,7 @@ RtResultVoid CustomAttribute::resolve_customattribute_data_arguments(utils::Bina
         RET_ERR(RtErr::MissingMethod);
 
     uint32_t param_count = ctor_method->parameter_count;
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, typed_arg_arr, Array::new_array_from_ele_klass(corlib_types.cls_object, (int32_t)param_count));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, typed_arg_arr, Array::new_szarray_from_ele_klass(corlib_types.cls_object, (int32_t)param_count));
     *typed_arg_arr_ptr = typed_arg_arr;
 
     for (uint32_t i = 0; i < param_count; ++i)
@@ -908,7 +908,7 @@ RtResultVoid CustomAttribute::resolve_customattribute_data_arguments(utils::Bina
     if (!reader->try_read_u16(named_arg_count))
         RET_ERR(RtErr::BadImageFormat);
 
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, named_arg_arr, Array::new_array_from_ele_klass(corlib_types.cls_object, (int32_t)named_arg_count));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, named_arg_arr, Array::new_szarray_from_ele_klass(corlib_types.cls_object, (int32_t)named_arg_count));
     *named_arg_arr_ptr = named_arg_arr;
 
     for (uint16_t i = 0; i < named_arg_count; ++i)
@@ -1147,7 +1147,7 @@ RtResult<RtArray*> CustomAttribute::get_customattribute_on_target_token(metadata
         ca_buf.push_back(ca);
     }
 
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, ca_arr, Array::new_array_from_ele_klass(types.cls_attribute, (int32_t)ca_buf.size()));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, ca_arr, Array::new_szarray_from_ele_klass(types.cls_attribute, (int32_t)ca_buf.size()));
 
     for (size_t i = 0; i < ca_buf.size(); ++i)
     {
@@ -1200,7 +1200,7 @@ RtResult<RtArray*> CustomAttribute::get_customattributes_data_on_target_token(me
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(metadata::RtCustomAttributeRidRange, rid_range, mod->get_custom_attribute_rid_range(target_token));
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(const metadata::RtMethodInfo*, ca_data_ctor, get_customattribute_data_ctor());
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(RtArray*, ca_data_arr, Array::new_array_from_ele_klass(types.cls_customattributedata, (int32_t)rid_range.count));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(RtArray*, ca_data_arr, Array::new_szarray_from_ele_klass(types.cls_customattributedata, (int32_t)rid_range.count));
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionAssembly*, assembly_obj, Reflection::get_assembly_reflection_object(mod->get_assembly()));
     for (uint32_t i = 0; i < rid_range.count; ++i)
     {

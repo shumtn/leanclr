@@ -9,6 +9,11 @@ namespace Tests.Instruments.Mems
 {
     internal class TC_cpblk : GeneralTestCaseBase
     {
-        // 实现处理，但无法构造测试用例
+        [UnitTest]
+        public unsafe void init_array_from_localloc()
+        {
+            byte* b = stackalloc byte[] { 1, 2, 3, 4, 5, 6 };
+            Assert.Equal(1, b[0]);
+        }
     }
 }

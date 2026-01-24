@@ -167,7 +167,7 @@ static RtResult<RtArray*> invoke_new_array(const metadata::RtMethodInfo* method,
         {
             auto length_obj = Array::get_array_data_at<RtObject*>(params, 0);
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(int32_t, length, unbox_i32(length_obj, corlib_types.cls_int32));
-            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr_obj, Array::new_array_from_ele_klass(klass->element_class, length));
+            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr_obj, Array::new_szarray_from_array_klass(klass, length));
             RET_OK(arr_obj);
         }
         else
@@ -179,7 +179,7 @@ static RtResult<RtArray*> invoke_new_array(const metadata::RtMethodInfo* method,
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(int32_t, length, unbox_i32(length_obj, corlib_types.cls_int32));
                 lengths[static_cast<size_t>(i)] = length;
             }
-            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr_obj, Array::new_mdarray(klass->element_class, lengths.data(), nullptr));
+            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr_obj, Array::new_mdarray_from_array_klass(klass, lengths.data(), nullptr));
             RET_OK(arr_obj);
         }
     }
@@ -199,7 +199,7 @@ static RtResult<RtArray*> invoke_new_array(const metadata::RtMethodInfo* method,
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(int32_t, lower_bound, unbox_i32(lower_bound_obj, corlib_types.cls_int32));
             lower_bounds[static_cast<size_t>(i)] = lower_bound;
         }
-        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr_obj, Array::new_mdarray(klass->element_class, lengths.data(), lower_bounds.data()));
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, arr_obj, Array::new_mdarray_from_array_klass(klass, lengths.data(), lower_bounds.data()));
         RET_OK(arr_obj);
     }
     else
@@ -267,7 +267,7 @@ RtResult<RtArray*> Reflection::get_param_objects(const metadata::RtMethodInfo* m
     size_t param_count = method->parameter_count;
     auto param_info_klass = Class::get_corlib_types().cls_reflection_parameter;
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, param_info_array_obj,
-                                            Array::new_array_from_ele_klass(param_info_klass, static_cast<int32_t>(param_count)));
+                                            Array::new_szarray_from_ele_klass(param_info_klass, static_cast<int32_t>(param_count)));
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionMethod*, ref_member, get_method_reflection_object(method, reflection_at_klass));
     auto ass = method->parent->image;

@@ -10,6 +10,7 @@ This directory contains documentation for the LeanCLR project.
 - [Build Documentation](./build/README.md) - Overview of building LeanCLR
 - [Building the Runtime](./build/build_runtime.md) - Step-by-step guide to build the runtime
 - [Embedding LeanCLR](./build/embed_leanclr.md) - How to integrate LeanCLR into your project
+- [AOT Compilation Guide](./aot.md) - How to use LeanAOT and integrate generated C++ into runtime
 - [Custom P/Invoke Function](./custom_pinvoke.md) How to add your custom P/Invoke function.
 
 ### Testing

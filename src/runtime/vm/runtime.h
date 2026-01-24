@@ -27,6 +27,9 @@ class Runtime
     static RtResultVoid invoke_stackobject_arguments_without_run_cctor(const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
                                                                        interp::RtStackObject* ret);
 
+    static RtResultVoid virtual_invoke_stackobject_arguments_without_run_cctor(const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
+                                                                               interp::RtStackObject* ret);
+
     static RtResultVoid invoke_stackobject_arguments_with_run_cctor(const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
                                                                     interp::RtStackObject* ret);
 

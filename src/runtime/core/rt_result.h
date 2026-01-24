@@ -83,13 +83,19 @@ class Result
         return std::get<T>(_data);
     }
 
+    const T& unwrap() const
+    {
+        assert(is_ok() && "Result::unwrap() called on error value");
+        return std::get<T>(_data);
+    }
+
     // T& unwrap_ref()
     // {
     //     assert(is_ok() && "Result::unwrap_ref() called on error value");
     //     return std::get<T>(data);
     // }
 
-    E unwrap_err()
+    E unwrap_err() const
     {
         assert(is_err() && "Result::unwrap_err() called on ok value");
         return std::get<E>(_data);

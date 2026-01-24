@@ -50,7 +50,11 @@ RtResult<RtString*> Environment::get_machine_name()
 
 RtResult<RtString*> Environment::get_new_line()
 {
+#ifdef LEANCLR_PLATFORM_WIN
+    RET_OK(String::create_string_from_utf8cstr("\r\n"));
+#else
     RET_OK(String::create_string_from_utf8cstr("\n"));
+#endif
 }
 
 RtResult<vm::RtString*> Environment::get_os_version_string()
@@ -65,7 +69,16 @@ RtResult<vm::RtString*> Environment::get_user_name()
 
 Platform Environment::get_platform()
 {
+#ifdef LEANCLR_PLATFORM_WIN
+    return Platform::Win32NT;
+#elif defined(LEANCLR_PLATFORM_MAC)
+    return Platform::MacOSX;
+#elif defined(LEANCLR_PLATFORM_LINUX) || defined(LEANCLR_PLATFORM_ANDROID) || defined(LEANCLR_PLATFORM_IOS) || defined(LEANCLR_PLATFORM_WASM) || \
+    defined(LEANCLR_PLATFORM_POSIX)
     return Platform::Unix;
+#else
+    return Platform::Unix;
+#endif
 }
 
 RtArray* Environment::get_command_line_args()
@@ -78,7 +91,7 @@ RtResultVoid Environment::init_cmdline_args(const char** argv, int32_t argc)
     assert(!g_cmdline_args && "Command line arguments have already been initialized");
     // Create string array for command line arguments
     metadata::RtClass* string_class = vm::Class::get_corlib_types().cls_string;
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, args_array, Array::new_array_from_ele_klass(string_class, argc));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, args_array, Array::new_szarray_from_ele_klass(string_class, argc));
 
     for (int32_t i = 0; i < argc; ++i)
     {
@@ -141,7 +154,7 @@ RtResult<RtArray*> Environment::get_environment_variable_names()
 {
     metadata::RtClass* string_class = vm::Class::get_corlib_types().cls_string;
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, names_array,
-                                            Array::new_array_from_ele_klass(string_class, static_cast<int32_t>(s_environment_variables_map.size())));
+                                            Array::new_szarray_from_ele_klass(string_class, static_cast<int32_t>(s_environment_variables_map.size())));
     size_t index = 0;
     for (const auto& [key, value] : s_environment_variables_map)
     {

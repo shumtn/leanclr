@@ -408,6 +408,11 @@ struct GeneralInst
         return arg3.value;
     }
 
+    size_t get_aot_invoker_idx() const
+    {
+        return arg3.value;
+    }
+
     void update_invoker_idx(size_t idx)
     {
         arg3.value = idx;

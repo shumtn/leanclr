@@ -18,10 +18,10 @@ RtResult<bool> SystemCurrentSystemTimeZone::get_time_zone_data(int32_t year, vm:
     auto corlib_types = vm::Class::get_corlib_types();
 
     // Allocate data array (4 int64 values: Bias, StandardBias, DaylightBias, StandardDate/DaylightDate)
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, date_arr, vm::Array::new_array_from_ele_klass(corlib_types.cls_int64, 4));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, date_arr, vm::Array::new_szarray_from_ele_klass(corlib_types.cls_int64, 4));
 
     // Allocate names array (2 string values: StandardName, DaylightName)
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, names_arr, vm::Array::new_array_from_ele_klass(corlib_types.cls_string, 2));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, names_arr, vm::Array::new_szarray_from_ele_klass(corlib_types.cls_string, 2));
 
     // Create default timezone name "UTC"
     auto default_tz_name = vm::String::create_string_from_utf8cstr("UTC");

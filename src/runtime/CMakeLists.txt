@@ -6,6 +6,7 @@ option(BUILD_SHARED_LEANCLR "Build leanclr as a shared (dynamic) library" OFF)
 
 set(RUNTIME_DIRS
     alloc
+    codegen
     core
     gc
     icalls

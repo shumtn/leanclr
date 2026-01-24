@@ -53,8 +53,8 @@ class InternalCalls
     static RtResult<InternalCallInvoker> get_newobj_internal_call_by_method(const metadata::RtMethodInfo* method);
 
     // Internal call invoker ID management
-    static uint16_t get_internal_call_invoker_id(InternalCallInvoker invoker);
-    static InternalCallInvoker get_internal_call_invoker_by_id(uint16_t id);
+    static uint16_t register_internal_call_invoker_id(InternalCallInvoker invoker);
+    static InternalCallInvoker get_internal_call_invoker_by_id_unchecked(uint16_t id);
 };
 
 }; // namespace leanclr::vm

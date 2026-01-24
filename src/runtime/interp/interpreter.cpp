@@ -4,9 +4,11 @@
 #include "interpreter.h"
 #include "vm/class.h"
 #include "metadata/module_def.h"
+#include "metadata/aot_module.h"
 #include "hl_transformer.h"
 #include "ll_transformer.h"
 #include "machine_state.h"
+#include "execution_helper.h"
 #include "vm/object.h"
 #include "vm/rt_array.h"
 #include "vm/method.h"
@@ -91,160 +93,6 @@ inline T* get_resolved_data(const RtInterpMethodInfo* imi, size_t index)
 {
     return (T*)imi->resolved_datas[index];
 }
-
-template <typename Src, typename Dst>
-inline int32_t cast_float_to_small_int(Src value)
-{
-    return (int32_t)(Dst)(int32_t)(value);
-}
-
-template <typename Src, typename Dst>
-inline int32_t cast_float_to_i32(Src value)
-{
-    if (value >= 0.0)
-    {
-        return (int32_t)(Dst)(value);
-    }
-    else
-    {
-        return (int32_t)(Dst)(int64_t)value;
-    }
-}
-
-template <typename Src, typename Dst>
-inline int64_t cast_float_to_i64(Src value)
-{
-    if (value >= 0.0)
-    {
-        return (int64_t)(uint64_t)value;
-    }
-    else
-    {
-        return (int64_t)(value);
-    }
-}
-
-// Compiler-agnostic overflow checking wrappers
-// Use built-in functions when available (GCC/Clang), fall back to manual checks for MSVC
-#if defined(__GNUC__) || defined(__clang__)
-// GCC and Clang support __builtin_*_overflow functions
-#define CHECK_ADD_OVERFLOW_I32(a, b, result) __builtin_add_overflow(a, b, result)
-#define CHECK_ADD_OVERFLOW_I64(a, b, result) __builtin_add_overflow(a, b, result)
-#define CHECK_ADD_OVERFLOW_U32(a, b, result) __builtin_add_overflow(a, b, result)
-#define CHECK_ADD_OVERFLOW_U64(a, b, result) __builtin_add_overflow(a, b, result)
-#define CHECK_SUB_OVERFLOW_I32(a, b, result) __builtin_sub_overflow(a, b, result)
-#define CHECK_SUB_OVERFLOW_I64(a, b, result) __builtin_sub_overflow(a, b, result)
-#define CHECK_SUB_OVERFLOW_U32(a, b, result) __builtin_sub_overflow(a, b, result)
-#define CHECK_SUB_OVERFLOW_U64(a, b, result) __builtin_sub_overflow(a, b, result)
-#define CHECK_MUL_OVERFLOW_I32(a, b, result) __builtin_mul_overflow(a, b, result)
-#define CHECK_MUL_OVERFLOW_I64(a, b, result) __builtin_mul_overflow(a, b, result)
-#define CHECK_MUL_OVERFLOW_U32(a, b, result) __builtin_mul_overflow(a, b, result)
-#define CHECK_MUL_OVERFLOW_U64(a, b, result) __builtin_mul_overflow(a, b, result)
-#else
-// Fallback for MSVC and other compilers: manual overflow checking
-inline bool check_add_overflow_i32(int32_t a, int32_t b, int32_t* result)
-{
-    int64_t res = static_cast<int64_t>(a) + static_cast<int64_t>(b);
-    if (res > INT32_MAX || res < INT32_MIN)
-        return true;
-    *result = static_cast<int32_t>(res);
-    return false;
-}
-inline bool check_add_overflow_i64(int64_t a, int64_t b, int64_t* result)
-{
-    if ((b > 0 && a > INT64_MAX - b) || (b < 0 && a < INT64_MIN - b))
-        return true;
-    *result = a + b;
-    return false;
-}
-inline bool check_add_overflow_u32(uint32_t a, uint32_t b, uint32_t* result)
-{
-    if (a > UINT32_MAX - b)
-        return true;
-    *result = a + b;
-    return false;
-}
-inline bool check_add_overflow_u64(uint64_t a, uint64_t b, uint64_t* result)
-{
-    if (a > UINT64_MAX - b)
-        return true;
-    *result = a + b;
-    return false;
-}
-inline bool check_sub_overflow_i32(int32_t a, int32_t b, int32_t* result)
-{
-    int64_t res = static_cast<int64_t>(a) - static_cast<int64_t>(b);
-    if (res > INT32_MAX || res < INT32_MIN)
-        return true;
-    *result = static_cast<int32_t>(res);
-    return false;
-}
-inline bool check_sub_overflow_i64(int64_t a, int64_t b, int64_t* result)
-{
-    if ((b > 0 && a < INT64_MIN + b) || (b < 0 && a > INT64_MAX + b))
-        return true;
-    *result = a - b;
-    return false;
-}
-inline bool check_sub_overflow_u32(uint32_t a, uint32_t b, uint32_t* result)
-{
-    if (a < b)
-        return true;
-    *result = a - b;
-    return false;
-}
-inline bool check_sub_overflow_u64(uint64_t a, uint64_t b, uint64_t* result)
-{
-    if (a < b)
-        return true;
-    *result = a - b;
-    return false;
-}
-inline bool check_mul_overflow_i32(int32_t a, int32_t b, int32_t* result)
-{
-    if (b != 0 && (a > INT32_MAX / b || a < INT32_MIN / b))
-        return true;
-    if (a == INT32_MIN && b == -1) // Special case: overflow
-        return true;
-    *result = a * b;
-    return false;
-}
-inline bool check_mul_overflow_i64(int64_t a, int64_t b, int64_t* result)
-{
-    if (b != 0 && (a > INT64_MAX / b || a < INT64_MIN / b))
-        return true;
-    if (a == INT64_MIN && b == -1) // Special case: overflow
-        return true;
-    *result = a * b;
-    return false;
-}
-inline bool check_mul_overflow_u32(uint32_t a, uint32_t b, uint32_t* result)
-{
-    if (b != 0 && a > UINT32_MAX / b)
-        return true;
-    *result = a * b;
-    return false;
-}
-inline bool check_mul_overflow_u64(uint64_t a, uint64_t b, uint64_t* result)
-{
-    if (b != 0 && a > UINT64_MAX / b)
-        return true;
-    *result = a * b;
-    return false;
-}
-#define CHECK_ADD_OVERFLOW_I32(a, b, result) check_add_overflow_i32(a, b, result)
-#define CHECK_ADD_OVERFLOW_I64(a, b, result) check_add_overflow_i64(a, b, result)
-#define CHECK_ADD_OVERFLOW_U32(a, b, result) check_add_overflow_u32(a, b, result)
-#define CHECK_ADD_OVERFLOW_U64(a, b, result) check_add_overflow_u64(a, b, result)
-#define CHECK_SUB_OVERFLOW_I32(a, b, result) check_sub_overflow_i32(a, b, result)
-#define CHECK_SUB_OVERFLOW_I64(a, b, result) check_sub_overflow_i64(a, b, result)
-#define CHECK_SUB_OVERFLOW_U32(a, b, result) check_sub_overflow_u32(a, b, result)
-#define CHECK_SUB_OVERFLOW_U64(a, b, result) check_sub_overflow_u64(a, b, result)
-#define CHECK_MUL_OVERFLOW_I32(a, b, result) check_mul_overflow_i32(a, b, result)
-#define CHECK_MUL_OVERFLOW_I64(a, b, result) check_mul_overflow_i64(a, b, result)
-#define CHECK_MUL_OVERFLOW_U32(a, b, result) check_mul_overflow_u32(a, b, result)
-#define CHECK_MUL_OVERFLOW_U64(a, b, result) check_mul_overflow_u64(a, b, result)
-#endif
 
 struct ThrowFlow
 {
@@ -903,6 +751,7 @@ RtResult<const RtStackObject*> Interpreter::execute(const metadata::RtMethodInfo
         &&LABEL0_CallInternalCallShort,
         &&LABEL0_CallIntrinsicShort,
         &&LABEL0_CallPInvokeShort,
+        &&LABEL0_CallAotShort,
         &&LABEL0_CallRuntimeImplementedShort,
         &&LABEL0_CalliInterpShort,
         &&LABEL0_BoxRefInplaceShort,
@@ -910,6 +759,8 @@ RtResult<const RtStackObject*> Interpreter::execute(const metadata::RtMethodInfo
         &&LABEL0_NewValueTypeInterpShort,
         &&LABEL0_NewObjInternalCallShort,
         &&LABEL0_NewObjIntrinsicShort,
+        &&LABEL0_NewObjAotShort,
+        &&LABEL0_NewValueTypeAotShort,
         &&LABEL0_ThrowShort,
         &&LABEL0_RethrowShort,
         &&LABEL0_LeaveTryWithFinallyShort,
@@ -918,9 +769,6 @@ RtResult<const RtStackObject*> Interpreter::execute(const metadata::RtMethodInfo
         &&LABEL0_EndFilterShort,
         &&LABEL0_EndFinallyShort,
         &&LABEL0_EndFaultShort,
-        &&LABEL0___UnusedF9,
-        &&LABEL0___UnusedF9,
-        &&LABEL0___UnusedF9,
         &&LABEL0___UnusedF9,
         &&LABEL0___UnusedF9,
         &&LABEL0___UnusedF9,
@@ -1176,6 +1024,7 @@ RtResult<const RtStackObject*> Interpreter::execute(const metadata::RtMethodInfo
         &&LABEL1_CallInternalCall,
         &&LABEL1_CallIntrinsic,
         &&LABEL1_CallPInvoke,
+        &&LABEL1_CallAot,
         &&LABEL1_CallRuntimeImplemented,
         &&LABEL1_CalliInterp,
         &&LABEL1_BoxRefInplace,
@@ -1183,6 +1032,8 @@ RtResult<const RtStackObject*> Interpreter::execute(const metadata::RtMethodInfo
         &&LABEL1_NewValueTypeInterp,
         &&LABEL1_NewObjInternalCall,
         &&LABEL1_NewObjIntrinsic,
+        &&LABEL1_NewObjAot,
+        &&LABEL1_NewValueTypeAot,
         &&LABEL1_Throw,
         &&LABEL1_Rethrow,
         &&LABEL1_LeaveTryWithFinally,
@@ -1193,179 +1044,55 @@ RtResult<const RtStackObject*> Interpreter::execute(const metadata::RtMethodInfo
         &&LABEL1_EndFault,
     };
     static void* const in_labels2[] = {
-        &&LABEL2_LdIndI1,
-        &&LABEL2_LdIndU1,
-        &&LABEL2_LdIndI2,
-        &&LABEL2_LdIndU2,
-        &&LABEL2_LdIndI4,
-        &&LABEL2_LdIndI8,
-        &&LABEL2_StIndI1,
-        &&LABEL2_StIndI2,
-        &&LABEL2_StIndI4,
-        &&LABEL2_StIndI8,
-        &&LABEL2_StIndI8I4,
-        &&LABEL2_StIndI8U4,
-        &&LABEL2_ConvI1I4,
-        &&LABEL2_ConvI1I8,
-        &&LABEL2_ConvI1R4,
-        &&LABEL2_ConvI1R8,
-        &&LABEL2_ConvU1I4,
-        &&LABEL2_ConvU1I8,
-        &&LABEL2_ConvU1R4,
-        &&LABEL2_ConvU1R8,
-        &&LABEL2_ConvI2I4,
-        &&LABEL2_ConvI2I8,
-        &&LABEL2_ConvI2R4,
-        &&LABEL2_ConvI2R8,
-        &&LABEL2_ConvU2I4,
-        &&LABEL2_ConvU2I8,
-        &&LABEL2_ConvU2R4,
-        &&LABEL2_ConvU2R8,
-        &&LABEL2_ConvI4I8,
-        &&LABEL2_ConvI4R4,
-        &&LABEL2_ConvI4R8,
-        &&LABEL2_ConvU4I8,
-        &&LABEL2_ConvU4R4,
-        &&LABEL2_ConvU4R8,
-        &&LABEL2_ConvI8I4,
-        &&LABEL2_ConvI8U4,
-        &&LABEL2_ConvI8R4,
-        &&LABEL2_ConvI8R8,
-        &&LABEL2_ConvU8I4,
-        &&LABEL2_ConvU8R4,
-        &&LABEL2_ConvU8R8,
-        &&LABEL2_ConvR4I4,
-        &&LABEL2_ConvR4I8,
-        &&LABEL2_ConvR4R8,
-        &&LABEL2_ConvR8I4,
-        &&LABEL2_ConvR8I8,
-        &&LABEL2_ConvR8R4,
-        &&LABEL2_LdelemaReadOnly,
-        &&LABEL2_InitBlk,
-        &&LABEL2_CpBlk,
-        &&LABEL2_GetEnumLongHashCode,
+        &&LABEL2_LdIndI1,  &&LABEL2_LdIndU1,   &&LABEL2_LdIndI2,
+        &&LABEL2_LdIndU2,  &&LABEL2_LdIndI4,   &&LABEL2_LdIndI8,
+        &&LABEL2_StIndI1,  &&LABEL2_StIndI2,   &&LABEL2_StIndI4,
+        &&LABEL2_StIndI8,  &&LABEL2_StIndI8I4, &&LABEL2_StIndI8U4,
+        &&LABEL2_ConvI1I4, &&LABEL2_ConvI1I8,  &&LABEL2_ConvI1R4,
+        &&LABEL2_ConvI1R8, &&LABEL2_ConvU1I4,  &&LABEL2_ConvU1I8,
+        &&LABEL2_ConvU1R4, &&LABEL2_ConvU1R8,  &&LABEL2_ConvI2I4,
+        &&LABEL2_ConvI2I8, &&LABEL2_ConvI2R4,  &&LABEL2_ConvI2R8,
+        &&LABEL2_ConvU2I4, &&LABEL2_ConvU2I8,  &&LABEL2_ConvU2R4,
+        &&LABEL2_ConvU2R8, &&LABEL2_ConvI4I8,  &&LABEL2_ConvI4R4,
+        &&LABEL2_ConvI4R8, &&LABEL2_ConvU4I8,  &&LABEL2_ConvU4R4,
+        &&LABEL2_ConvU4R8, &&LABEL2_ConvI8I4,  &&LABEL2_ConvI8U4,
+        &&LABEL2_ConvI8R4, &&LABEL2_ConvI8R8,  &&LABEL2_ConvU8I4,
+        &&LABEL2_ConvU8R4, &&LABEL2_ConvU8R8,  &&LABEL2_ConvR4I4,
+        &&LABEL2_ConvR4I8, &&LABEL2_ConvR4R8,  &&LABEL2_ConvR8I4,
+        &&LABEL2_ConvR8I8, &&LABEL2_ConvR8R4,  &&LABEL2_LdelemaReadOnly,
+        &&LABEL2_InitBlk,  &&LABEL2_CpBlk,     &&LABEL2_GetEnumLongHashCode,
     };
     static void* const in_labels3[] = {
-        &&LABEL3_LdIndI2Unaligned,
-        &&LABEL3_LdIndU2Unaligned,
-        &&LABEL3_LdIndI4Unaligned,
-        &&LABEL3_LdIndI8Unaligned,
-        &&LABEL3_StIndI2Unaligned,
-        &&LABEL3_StIndI4Unaligned,
-        &&LABEL3_StIndI8Unaligned,
-        &&LABEL3_StIndI8I4Unaligned,
-        &&LABEL3_StIndI8U4Unaligned,
-        &&LABEL3_AddOvfI4,
-        &&LABEL3_AddOvfI8,
-        &&LABEL3_AddOvfUnI4,
-        &&LABEL3_AddOvfUnI8,
-        &&LABEL3_MulOvfI4,
-        &&LABEL3_MulOvfI8,
-        &&LABEL3_MulOvfUnI4,
-        &&LABEL3_MulOvfUnI8,
-        &&LABEL3_SubOvfI4,
-        &&LABEL3_SubOvfI8,
-        &&LABEL3_SubOvfUnI4,
-        &&LABEL3_SubOvfUnI8,
-        &&LABEL3_ConvOvfI1I4,
-        &&LABEL3_ConvOvfI1I8,
-        &&LABEL3_ConvOvfI1R4,
-        &&LABEL3_ConvOvfI1R8,
-        &&LABEL3_ConvOvfU1I4,
-        &&LABEL3_ConvOvfU1I8,
-        &&LABEL3_ConvOvfU1R4,
-        &&LABEL3_ConvOvfU1R8,
-        &&LABEL3_ConvOvfI2I4,
-        &&LABEL3_ConvOvfI2I8,
-        &&LABEL3_ConvOvfI2R4,
-        &&LABEL3_ConvOvfI2R8,
-        &&LABEL3_ConvOvfU2I4,
-        &&LABEL3_ConvOvfU2I8,
-        &&LABEL3_ConvOvfU2R4,
-        &&LABEL3_ConvOvfU2R8,
-        &&LABEL3_ConvOvfI4I8,
-        &&LABEL3_ConvOvfI4R4,
-        &&LABEL3_ConvOvfI4R8,
-        &&LABEL3_ConvOvfU4I4,
-        &&LABEL3_ConvOvfU4I8,
-        &&LABEL3_ConvOvfU4R4,
-        &&LABEL3_ConvOvfU4R8,
-        &&LABEL3_ConvOvfI8R4,
-        &&LABEL3_ConvOvfI8R8,
-        &&LABEL3_ConvOvfU8I4,
-        &&LABEL3_ConvOvfU8I8,
-        &&LABEL3_ConvOvfU8R4,
-        &&LABEL3_ConvOvfU8R8,
-        &&LABEL3_ConvOvfI1UnI4,
-        &&LABEL3_ConvOvfI1UnI8,
-        &&LABEL3_ConvOvfI1UnR4,
-        &&LABEL3_ConvOvfI1UnR8,
-        &&LABEL3_ConvOvfU1UnI4,
-        &&LABEL3_ConvOvfU1UnI8,
-        &&LABEL3_ConvOvfU1UnR4,
-        &&LABEL3_ConvOvfU1UnR8,
-        &&LABEL3_ConvOvfI2UnI4,
-        &&LABEL3_ConvOvfI2UnI8,
-        &&LABEL3_ConvOvfI2UnR4,
-        &&LABEL3_ConvOvfI2UnR8,
-        &&LABEL3_ConvOvfU2UnI4,
-        &&LABEL3_ConvOvfU2UnI8,
-        &&LABEL3_ConvOvfU2UnR4,
-        &&LABEL3_ConvOvfU2UnR8,
-        &&LABEL3_ConvOvfI4UnI4,
-        &&LABEL3_ConvOvfI4UnI8,
-        &&LABEL3_ConvOvfI4UnR4,
-        &&LABEL3_ConvOvfI4UnR8,
-        &&LABEL3_ConvOvfU4UnI8,
-        &&LABEL3_ConvOvfU4UnR4,
-        &&LABEL3_ConvOvfU4UnR8,
-        &&LABEL3_ConvOvfI8UnI8,
-        &&LABEL3_ConvOvfI8UnR4,
-        &&LABEL3_ConvOvfI8UnR8,
-        &&LABEL3_ConvOvfU8UnR4,
-        &&LABEL3_ConvOvfU8UnR8,
-        &&LABEL3_InitObjI2Unaligned,
-        &&LABEL3_InitObjI4Unaligned,
-        &&LABEL3_InitObjI8Unaligned,
-        &&LABEL3_LdfldI1Large,
-        &&LABEL3_LdfldU1Large,
-        &&LABEL3_LdfldI2Large,
-        &&LABEL3_LdfldI2Unaligned,
-        &&LABEL3_LdfldU2Large,
-        &&LABEL3_LdfldU2Unaligned,
-        &&LABEL3_LdfldI4Large,
-        &&LABEL3_LdfldI4Unaligned,
-        &&LABEL3_LdfldI8Large,
-        &&LABEL3_LdfldI8Unaligned,
-        &&LABEL3_LdfldAnyLarge,
-        &&LABEL3_LdvfldI1Large,
-        &&LABEL3_LdvfldU1Large,
-        &&LABEL3_LdvfldI2Large,
-        &&LABEL3_LdvfldI2Unaligned,
-        &&LABEL3_LdvfldU2Large,
-        &&LABEL3_LdvfldU2Unaligned,
-        &&LABEL3_LdvfldI4Large,
-        &&LABEL3_LdvfldI4Unaligned,
-        &&LABEL3_LdvfldI8Large,
-        &&LABEL3_LdvfldI8Unaligned,
-        &&LABEL3_LdvfldAnyLarge,
-        &&LABEL3_LdfldaLarge,
-        &&LABEL3_StfldI1Large,
-        &&LABEL3_StfldI2Large,
-        &&LABEL3_StfldI2Unaligned,
-        &&LABEL3_StfldI4Large,
-        &&LABEL3_StfldI4Unaligned,
-        &&LABEL3_StfldI8Large,
-        &&LABEL3_StfldI8Unaligned,
-        &&LABEL3_StfldAnyLarge,
+        &&LABEL3_LdIndI2Unaligned,   &&LABEL3_LdIndU2Unaligned,  &&LABEL3_LdIndI4Unaligned,   &&LABEL3_LdIndI8Unaligned,   &&LABEL3_StIndI2Unaligned,
+        &&LABEL3_StIndI4Unaligned,   &&LABEL3_StIndI8Unaligned,  &&LABEL3_StIndI8I4Unaligned, &&LABEL3_StIndI8U4Unaligned, &&LABEL3_AddOvfI4,
+        &&LABEL3_AddOvfI8,           &&LABEL3_AddOvfUnI4,        &&LABEL3_AddOvfUnI8,         &&LABEL3_MulOvfI4,           &&LABEL3_MulOvfI8,
+        &&LABEL3_MulOvfUnI4,         &&LABEL3_MulOvfUnI8,        &&LABEL3_SubOvfI4,           &&LABEL3_SubOvfI8,           &&LABEL3_SubOvfUnI4,
+        &&LABEL3_SubOvfUnI8,         &&LABEL3_ConvOvfI1I4,       &&LABEL3_ConvOvfI1I8,        &&LABEL3_ConvOvfI1R4,        &&LABEL3_ConvOvfI1R8,
+        &&LABEL3_ConvOvfU1I4,        &&LABEL3_ConvOvfU1I8,       &&LABEL3_ConvOvfU1R4,        &&LABEL3_ConvOvfU1R8,        &&LABEL3_ConvOvfI2I4,
+        &&LABEL3_ConvOvfI2I8,        &&LABEL3_ConvOvfI2R4,       &&LABEL3_ConvOvfI2R8,        &&LABEL3_ConvOvfU2I4,        &&LABEL3_ConvOvfU2I8,
+        &&LABEL3_ConvOvfU2R4,        &&LABEL3_ConvOvfU2R8,       &&LABEL3_ConvOvfI4I8,        &&LABEL3_ConvOvfI4R4,        &&LABEL3_ConvOvfI4R8,
+        &&LABEL3_ConvOvfU4I4,        &&LABEL3_ConvOvfU4I8,       &&LABEL3_ConvOvfU4R4,        &&LABEL3_ConvOvfU4R8,        &&LABEL3_ConvOvfI8R4,
+        &&LABEL3_ConvOvfI8R8,        &&LABEL3_ConvOvfU8I4,       &&LABEL3_ConvOvfU8I8,        &&LABEL3_ConvOvfU8R4,        &&LABEL3_ConvOvfU8R8,
+        &&LABEL3_ConvOvfI1UnI4,      &&LABEL3_ConvOvfI1UnI8,     &&LABEL3_ConvOvfI1UnR4,      &&LABEL3_ConvOvfI1UnR8,      &&LABEL3_ConvOvfU1UnI4,
+        &&LABEL3_ConvOvfU1UnI8,      &&LABEL3_ConvOvfU1UnR4,     &&LABEL3_ConvOvfU1UnR8,      &&LABEL3_ConvOvfI2UnI4,      &&LABEL3_ConvOvfI2UnI8,
+        &&LABEL3_ConvOvfI2UnR4,      &&LABEL3_ConvOvfI2UnR8,     &&LABEL3_ConvOvfU2UnI4,      &&LABEL3_ConvOvfU2UnI8,      &&LABEL3_ConvOvfU2UnR4,
+        &&LABEL3_ConvOvfU2UnR8,      &&LABEL3_ConvOvfI4UnI4,     &&LABEL3_ConvOvfI4UnI8,      &&LABEL3_ConvOvfI4UnR4,      &&LABEL3_ConvOvfI4UnR8,
+        &&LABEL3_ConvOvfU4UnI8,      &&LABEL3_ConvOvfU4UnR4,     &&LABEL3_ConvOvfU4UnR8,      &&LABEL3_ConvOvfI8UnI8,      &&LABEL3_ConvOvfI8UnR4,
+        &&LABEL3_ConvOvfI8UnR8,      &&LABEL3_ConvOvfU8UnR4,     &&LABEL3_ConvOvfU8UnR8,      &&LABEL3_InitObjI2Unaligned, &&LABEL3_InitObjI4Unaligned,
+        &&LABEL3_InitObjI8Unaligned, &&LABEL3_LdfldI1Large,      &&LABEL3_LdfldU1Large,       &&LABEL3_LdfldI2Large,       &&LABEL3_LdfldI2Unaligned,
+        &&LABEL3_LdfldU2Large,       &&LABEL3_LdfldU2Unaligned,  &&LABEL3_LdfldI4Large,       &&LABEL3_LdfldI4Unaligned,   &&LABEL3_LdfldI8Large,
+        &&LABEL3_LdfldI8Unaligned,   &&LABEL3_LdfldAnyLarge,     &&LABEL3_LdvfldI1Large,      &&LABEL3_LdvfldU1Large,      &&LABEL3_LdvfldI2Large,
+        &&LABEL3_LdvfldI2Unaligned,  &&LABEL3_LdvfldU2Large,     &&LABEL3_LdvfldU2Unaligned,  &&LABEL3_LdvfldI4Large,      &&LABEL3_LdvfldI4Unaligned,
+        &&LABEL3_LdvfldI8Large,      &&LABEL3_LdvfldI8Unaligned, &&LABEL3_LdvfldAnyLarge,     &&LABEL3_LdfldaLarge,        &&LABEL3_StfldI1Large,
+        &&LABEL3_StfldI2Large,       &&LABEL3_StfldI2Unaligned,  &&LABEL3_StfldI4Large,       &&LABEL3_StfldI4Unaligned,   &&LABEL3_StfldI8Large,
+        &&LABEL3_StfldI8Unaligned,   &&LABEL3_StfldAnyLarge,
     };
     static void* const in_labels4[] = {
         &&LABEL4_Illegal,
         &&LABEL4_Nop,
         &&LABEL4_Arglist,
     };
-    static void* const in_labels5[] = {
-    };
+    static void* const in_labels5[] = {};
 
 ///}}COMPUTED_GOTO_LABELS
 #endif
@@ -2756,7 +2483,7 @@ method_start:
             {
                 int32_t length = get_stack_value_at<int32_t>(eval_stack_base, ir->length);
                 metadata::RtClass* element_class = get_resolved_data<metadata::RtClass>(imi, ir->arr_klass_idx);
-                HANDLE_RAISE_RUNTIME_ERROR(vm::RtArray*, new_array, vm::Array::new_array_from_array_type(element_class, length));
+                HANDLE_RAISE_RUNTIME_ERROR(vm::RtArray*, new_array, vm::Array::new_szarray_from_array_klass(element_class, length));
                 set_stack_value_at<vm::RtArray*>(eval_stack_base, ir->dst, new_array);
             }
             LEANCLR_CASE_END0()
@@ -3141,6 +2868,11 @@ method_start:
                     RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                 }
                 vm::RtObject* value = get_stack_value_at<vm::RtObject*>(eval_stack_base, ir->value);
+                metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
+                if (value && !vm::Class::is_assignable_from(value->klass, ele_klass))
+                {
+                    RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
+                }
                 vm::Array::set_array_data_at<vm::RtObject*>(array, index, value);
             }
             LEANCLR_CASE_END0()
@@ -3158,7 +2890,7 @@ method_start:
                 }
                 vm::RtObject* value = get_stack_value_at<vm::RtObject*>(eval_stack_base, ir->value);
                 metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
-                if (value && !vm::Class::is_assignable_from(ele_klass, value->klass))
+                if (value && !vm::Class::is_assignable_from(value->klass, ele_klass))
                 {
                     RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
                 }
@@ -3511,6 +3243,8 @@ method_start:
             {
                 int32_t value = get_stack_value_at<int32_t>(eval_stack_base, ir->value);
                 const metadata::RtFieldInfo* field = get_resolved_data<metadata::RtFieldInfo>(imi, ir->field_idx);
+                metadata::RtClass* klass = field->parent;
+                TRY_RUN_CLASS_STATIC_CCTOR(klass);
                 int16_t* field_addr = get_static_field_address<int16_t>(field);
                 *field_addr = static_cast<int16_t>(value);
             }
@@ -3575,7 +3309,7 @@ method_start:
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(CallInterpShort)
             {
-                const auto* ir = reinterpret_cast<const ll::CallInterp*>(ip);
+                const auto* ir = reinterpret_cast<const ll::CallInterpShort*>(ip);
                 const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                 if (vm::Method::is_static(target_method))
                 {
@@ -3587,7 +3321,7 @@ method_start:
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(CallVirtInterpShort)
             {
-                const auto* ir = reinterpret_cast<const ll::CallVirtInterp*>(ip);
+                const auto* ir = reinterpret_cast<const ll::CallVirtInterpShort*>(ip);
                 vm::RtObject* obj = get_stack_value_at<vm::RtObject*>(eval_stack_base, ir->frame_base);
                 if (!obj)
                 {
@@ -3596,25 +3330,25 @@ method_start:
                 const metadata::RtMethodInfo* original_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const metadata::RtMethodInfo*, actual_method,
                                                         vm::Method::get_virtual_method_impl(obj, original_method));
-                if (vm::Class::is_value_type(actual_method->parent))
-                {
-                    set_stack_value_at(eval_stack_base, ir->frame_base, obj + 1);
-                }
                 if (actual_method->invoker_type == metadata::RtInvokerType::Interpreter)
                 {
+                    if (vm::Class::is_value_type(actual_method->parent))
+                    {
+                        set_stack_value_at(eval_stack_base, ir->frame_base, obj + 1);
+                    }
                     ENTER_INTERP_FRAME(actual_method, ir->frame_base, reinterpret_cast<const uint8_t*>(ir + 1));
                 }
                 else
                 {
                     ip = reinterpret_cast<const uint8_t*>(ir + 1);
                     RtStackObject* frame_base = eval_stack_base + ir->frame_base;
-                    HANDLE_RAISE_RUNTIME_ERROR_VOID(actual_method->invoke_method_ptr(actual_method->method_ptr, actual_method, frame_base, frame_base));
+                    HANDLE_RAISE_RUNTIME_ERROR_VOID(actual_method->virtual_invoke_method_ptr(actual_method->method_ptr, actual_method, frame_base, frame_base));
                 }
             }
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(CallInternalCallShort)
             {
-                const auto* ir = reinterpret_cast<const ll::CallInternalCall*>(ip);
+                const auto* ir = reinterpret_cast<const ll::CallInternalCallShort*>(ip);
                 const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                 if (vm::Method::is_static(target_method))
                 {
@@ -3627,7 +3361,7 @@ method_start:
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(CallIntrinsicShort)
             {
-                const auto* ir = reinterpret_cast<const ll::CallIntrinsic*>(ip);
+                const auto* ir = reinterpret_cast<const ll::CallIntrinsicShort*>(ip);
                 const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                 if (vm::Method::is_static(target_method))
                 {
@@ -3640,7 +3374,20 @@ method_start:
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(CallPInvokeShort)
             {
-                const auto* ir = reinterpret_cast<const ll::CallPInvoke*>(ip);
+                const auto* ir = reinterpret_cast<const ll::CallPInvokeShort*>(ip);
+                const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
+                if (vm::Method::is_static(target_method))
+                {
+                    TRY_RUN_CLASS_STATIC_CCTOR(target_method->parent);
+                }
+                ip = reinterpret_cast<const uint8_t*>(ir + 1);
+                RtStackObject* frame_base = eval_stack_base + ir->frame_base;
+                HANDLE_RAISE_RUNTIME_ERROR_VOID(target_method->invoke_method_ptr(target_method->method_ptr, target_method, frame_base, frame_base));
+            }
+            LEANCLR_CASE_END_LITE0()
+            LEANCLR_CASE_BEGIN_LITE0(CallAotShort)
+            {
+                const auto* ir = reinterpret_cast<const ll::CallAotShort*>(ip);
                 const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                 if (vm::Method::is_static(target_method))
                 {
@@ -3653,7 +3400,7 @@ method_start:
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(CallRuntimeImplementedShort)
             {
-                const auto* ir = reinterpret_cast<const ll::CallRuntimeImplemented*>(ip);
+                const auto* ir = reinterpret_cast<const ll::CallRuntimeImplementedShort*>(ip);
                 const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                 if (vm::Method::is_static(target_method))
                 {
@@ -3666,7 +3413,7 @@ method_start:
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(CalliInterpShort)
             {
-                const auto* ir = reinterpret_cast<const ll::CalliInterp*>(ip);
+                const auto* ir = reinterpret_cast<const ll::CalliInterpShort*>(ip);
                 const metadata::RtMethodSig* method_sig = get_resolved_data<const metadata::RtMethodSig>(imi, ir->method_sig_idx);
                 const uint8_t* next_ip = reinterpret_cast<const uint8_t*>(ir + 1);
                 const metadata::RtMethodInfo* target_method = get_stack_value_at<const metadata::RtMethodInfo*>(eval_stack_base, ir->method_idx);
@@ -3696,7 +3443,7 @@ method_start:
             LEANCLR_CASE_END0()
             LEANCLR_CASE_BEGIN_LITE0(NewObjInterpShort)
             {
-                const auto* ir = reinterpret_cast<const ll::NewObjInterp*>(ip);
+                const auto* ir = reinterpret_cast<const ll::NewObjInterpShort*>(ip);
                 const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                 metadata::RtClass* klass = ctor->parent;
                 TRY_RUN_CLASS_STATIC_CCTOR(klass);
@@ -3709,7 +3456,7 @@ method_start:
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(NewValueTypeInterpShort)
             {
-                const auto* ir = reinterpret_cast<const ll::NewValueTypeInterp*>(ip);
+                const auto* ir = reinterpret_cast<const ll::NewValueTypeInterpShort*>(ip);
                 const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                 metadata::RtClass* klass = ctor->parent;
                 RtStackObject* original_frame_base = eval_stack_base + ir->frame_base;
@@ -3721,26 +3468,49 @@ method_start:
                 ENTER_INTERP_FRAME(ctor, ir->frame_base + value_stack_objects, reinterpret_cast<const uint8_t*>(ir + 1));
             }
             LEANCLR_CASE_END_LITE0()
-            LEANCLR_CASE_BEGIN_LITE0(NewObjInternalCallShort)
+            LEANCLR_CASE_BEGIN0(NewObjInternalCallShort)
             {
-                const auto* ir = reinterpret_cast<const ll::NewObjInternalCall*>(ip);
                 const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                 TRY_RUN_CLASS_STATIC_CCTOR(target_method->parent);
-                ip = reinterpret_cast<const uint8_t*>(ir + 1);
-                vm::InternalCallInvoker invoker = vm::InternalCalls::get_internal_call_invoker_by_id(ir->invoker_idx);
+                vm::InternalCallInvoker invoker = vm::InternalCalls::get_internal_call_invoker_by_id_unchecked(ir->invoker_idx);
                 RtStackObject* frame_base = eval_stack_base + ir->frame_base;
                 HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(target_method->method_ptr, target_method, frame_base, frame_base));
             }
-            LEANCLR_CASE_END_LITE0()
+            LEANCLR_CASE_END0()
             LEANCLR_CASE_BEGIN0(NewObjIntrinsicShort)
             {
-                const auto* ir = reinterpret_cast<const ll::NewObjIntrinsic*>(ip);
                 const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                 TRY_RUN_CLASS_STATIC_CCTOR(target_method->parent);
-                ip = reinterpret_cast<const uint8_t*>(ir + 1);
-                vm::InternalCallInvoker invoker = vm::Intrinsics::get_intrinsic_invoker_by_id(ir->invoker_idx);
+                vm::InternalCallInvoker invoker = vm::Intrinsics::get_intrinsic_invoker_by_id_unchecked(ir->invoker_idx);
                 RtStackObject* frame_base = eval_stack_base + ir->frame_base;
                 HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(target_method->method_ptr, target_method, frame_base, frame_base));
+            }
+            LEANCLR_CASE_END0()
+            LEANCLR_CASE_BEGIN0(NewObjAotShort)
+            {
+                const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
+                metadata::RtClass* klass = ctor->parent;
+                TRY_RUN_CLASS_STATIC_CCTOR(klass);
+                HANDLE_RAISE_RUNTIME_ERROR(vm::RtObject*, obj, vm::Object::new_object(klass));
+                RtStackObject* frame_base = eval_stack_base + ir->frame_base;
+                std::memmove(frame_base + 1, frame_base, static_cast<size_t>(ir->total_params_stack_object_size) * sizeof(RtStackObject));
+                frame_base->obj = obj;
+                metadata::AotInvoker invoker = ctor->invoke_method_ptr;
+                HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(ctor->method_ptr, ctor, frame_base, frame_base));
+            }
+            LEANCLR_CASE_END0()
+            LEANCLR_CASE_BEGIN0(NewValueTypeAotShort)
+            {
+                const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
+                metadata::RtClass* klass = ctor->parent;
+                RtStackObject* original_frame_base = eval_stack_base + ir->frame_base;
+                const size_t value_stack_objects = InterpDefs::get_stack_object_size_by_byte_size(klass->instance_size_without_header);
+                RtStackObject* final_frame_base = original_frame_base + value_stack_objects;
+                std::memmove(final_frame_base + 1, original_frame_base, static_cast<size_t>(ir->total_params_stack_object_size) * sizeof(RtStackObject));
+                final_frame_base->ptr = original_frame_base;
+                std::memset(original_frame_base, 0, value_stack_objects * sizeof(RtStackObject));
+                metadata::AotInvoker invoker = ctor->invoke_method_ptr;
+                HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(ctor->method_ptr, ctor, final_frame_base, final_frame_base));
             }
             LEANCLR_CASE_END0()
             LEANCLR_CASE_BEGIN0(ThrowShort)
@@ -3769,7 +3539,7 @@ method_start:
             LEANCLR_CASE_END0()
             LEANCLR_CASE_BEGIN_LITE0(LeaveTryWithFinallyShort)
             {
-                const auto* ir = reinterpret_cast<const ll::LeaveTryWithFinally*>(ip);
+                const auto* ir = reinterpret_cast<const ll::LeaveTryWithFinallyShort*>(ip);
                 assert(ir->finally_clauses_count > 0);
                 assert(ir->first_finally_clause_index < imi->exception_clause_count);
                 const uint8_t* target_ip = ip + ir->target_offset;
@@ -3780,7 +3550,7 @@ method_start:
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(LeaveCatchWithFinallyShort)
             {
-                const auto* ir = reinterpret_cast<const ll::LeaveCatchWithFinally*>(ip);
+                const auto* ir = reinterpret_cast<const ll::LeaveCatchWithFinallyShort*>(ip);
                 assert(ir->finally_clauses_count > 0);
                 assert(ir->first_finally_clause_index < imi->exception_clause_count);
                 vm::RtException* ex = get_exception_in_last_throw_flow(frame, static_cast<uint32_t>(ip - imi->codes));
@@ -3793,7 +3563,7 @@ method_start:
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(LeaveCatchWithoutFinallyShort)
             {
-                const auto* ir = reinterpret_cast<const ll::LeaveCatchWithoutFinally*>(ip);
+                const auto* ir = reinterpret_cast<const ll::LeaveCatchWithoutFinallyShort*>(ip);
                 vm::RtException* ex = get_exception_in_last_throw_flow(frame, static_cast<uint32_t>(ip - imi->codes));
                 pop_throw_flow(ex, frame);
                 ip += ir->target_offset;
@@ -3801,7 +3571,7 @@ method_start:
             LEANCLR_CASE_END_LITE0()
             LEANCLR_CASE_BEGIN_LITE0(EndFilterShort)
             {
-                const auto* ir = reinterpret_cast<const ll::EndFilter*>(ip);
+                const auto* ir = reinterpret_cast<const ll::EndFilterShort*>(ip);
                 int32_t cond = get_stack_value_at<int32_t>(eval_stack_base, ir->cond);
                 if (cond)
                 {
@@ -5505,7 +5275,7 @@ method_start:
                     {
                         int32_t length = get_stack_value_at<int32_t>(eval_stack_base, ir->length);
                         metadata::RtClass* element_class = get_resolved_data<metadata::RtClass>(imi, ir->arr_klass_idx);
-                        HANDLE_RAISE_RUNTIME_ERROR(vm::RtArray*, new_array, vm::Array::new_array_from_array_type(element_class, length));
+                        HANDLE_RAISE_RUNTIME_ERROR(vm::RtArray*, new_array, vm::Array::new_szarray_from_array_klass(element_class, length));
                         set_stack_value_at<vm::RtArray*>(eval_stack_base, ir->dst, new_array);
                     }
                     LEANCLR_CASE_END1()
@@ -5890,6 +5660,11 @@ method_start:
                             RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                         }
                         vm::RtObject* value = get_stack_value_at<vm::RtObject*>(eval_stack_base, ir->value);
+                        metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
+                        if (value && !vm::Class::is_assignable_from(value->klass, ele_klass))
+                        {
+                            RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
+                        }
                         vm::Array::set_array_data_at<vm::RtObject*>(array, index, value);
                     }
                     LEANCLR_CASE_END1()
@@ -5907,7 +5682,7 @@ method_start:
                         }
                         vm::RtObject* value = get_stack_value_at<vm::RtObject*>(eval_stack_base, ir->value);
                         metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
-                        if (value && !vm::Class::is_assignable_from(ele_klass, value->klass))
+                        if (value && !vm::Class::is_assignable_from(value->klass, ele_klass))
                         {
                             RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
                         }
@@ -6326,6 +6101,8 @@ method_start:
                     {
                         int32_t value = get_stack_value_at<int32_t>(eval_stack_base, ir->value);
                         const metadata::RtFieldInfo* field = get_resolved_data<metadata::RtFieldInfo>(imi, ir->field_idx);
+                        metadata::RtClass* klass = field->parent;
+                        TRY_RUN_CLASS_STATIC_CCTOR(klass);
                         int16_t* field_addr = get_static_field_address<int16_t>(field);
                         *field_addr = static_cast<int16_t>(value);
                     }
@@ -6406,19 +6183,20 @@ method_start:
                         const metadata::RtMethodInfo* original_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const metadata::RtMethodInfo*, actual_method,
                                                                 vm::Method::get_virtual_method_impl(obj, original_method));
-                        if (vm::Class::is_value_type(actual_method->parent))
-                        {
-                            set_stack_value_at(eval_stack_base, ir->frame_base, obj + 1);
-                        }
                         if (actual_method->invoker_type == metadata::RtInvokerType::Interpreter)
                         {
+                            if (vm::Class::is_value_type(actual_method->parent))
+                            {
+                                set_stack_value_at(eval_stack_base, ir->frame_base, obj + 1);
+                            }
                             ENTER_INTERP_FRAME(actual_method, ir->frame_base, reinterpret_cast<const uint8_t*>(ir + 1));
                         }
                         else
                         {
                             ip = reinterpret_cast<const uint8_t*>(ir + 1);
                             RtStackObject* frame_base = eval_stack_base + ir->frame_base;
-                            HANDLE_RAISE_RUNTIME_ERROR_VOID(actual_method->invoke_method_ptr(actual_method->method_ptr, actual_method, frame_base, frame_base));
+                            HANDLE_RAISE_RUNTIME_ERROR_VOID(
+                                actual_method->virtual_invoke_method_ptr(actual_method->method_ptr, actual_method, frame_base, frame_base));
                         }
                     }
                     LEANCLR_CASE_END_LITE1()
@@ -6451,6 +6229,19 @@ method_start:
                     LEANCLR_CASE_BEGIN_LITE1(CallPInvoke)
                     {
                         const auto* ir = reinterpret_cast<const ll::CallPInvoke*>(ip);
+                        const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
+                        if (vm::Method::is_static(target_method))
+                        {
+                            TRY_RUN_CLASS_STATIC_CCTOR(target_method->parent);
+                        }
+                        ip = reinterpret_cast<const uint8_t*>(ir + 1);
+                        RtStackObject* frame_base = eval_stack_base + ir->frame_base;
+                        HANDLE_RAISE_RUNTIME_ERROR_VOID(target_method->invoke_method_ptr(target_method->method_ptr, target_method, frame_base, frame_base));
+                    }
+                    LEANCLR_CASE_END_LITE1()
+                    LEANCLR_CASE_BEGIN_LITE1(CallAot)
+                    {
+                        const auto* ir = reinterpret_cast<const ll::CallAot*>(ip);
                         const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                         if (vm::Method::is_static(target_method))
                         {
@@ -6533,26 +6324,50 @@ method_start:
                         ENTER_INTERP_FRAME(ctor, ir->frame_base + value_stack_objects, reinterpret_cast<const uint8_t*>(ir + 1));
                     }
                     LEANCLR_CASE_END_LITE1()
-                    LEANCLR_CASE_BEGIN_LITE1(NewObjInternalCall)
+                    LEANCLR_CASE_BEGIN1(NewObjInternalCall)
                     {
-                        const auto* ir = reinterpret_cast<const ll::NewObjInternalCall*>(ip);
                         const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                         TRY_RUN_CLASS_STATIC_CCTOR(target_method->parent);
-                        ip = reinterpret_cast<const uint8_t*>(ir + 1);
-                        vm::InternalCallInvoker invoker = vm::InternalCalls::get_internal_call_invoker_by_id(ir->invoker_idx);
+                        vm::InternalCallInvoker invoker = vm::InternalCalls::get_internal_call_invoker_by_id_unchecked(ir->invoker_idx);
                         RtStackObject* frame_base = eval_stack_base + ir->frame_base;
                         HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(target_method->method_ptr, target_method, frame_base, frame_base));
                     }
-                    LEANCLR_CASE_END_LITE1()
+                    LEANCLR_CASE_END1()
                     LEANCLR_CASE_BEGIN1(NewObjIntrinsic)
                     {
-                        const auto* ir = reinterpret_cast<const ll::NewObjIntrinsic*>(ip);
                         const metadata::RtMethodInfo* target_method = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
                         TRY_RUN_CLASS_STATIC_CCTOR(target_method->parent);
-                        ip = reinterpret_cast<const uint8_t*>(ir + 1);
-                        vm::InternalCallInvoker invoker = vm::Intrinsics::get_intrinsic_invoker_by_id(ir->invoker_idx);
+                        vm::InternalCallInvoker invoker = vm::Intrinsics::get_intrinsic_invoker_by_id_unchecked(ir->invoker_idx);
                         RtStackObject* frame_base = eval_stack_base + ir->frame_base;
                         HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(target_method->method_ptr, target_method, frame_base, frame_base));
+                    }
+                    LEANCLR_CASE_END1()
+                    LEANCLR_CASE_BEGIN1(NewObjAot)
+                    {
+                        const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
+                        metadata::RtClass* klass = ctor->parent;
+                        TRY_RUN_CLASS_STATIC_CCTOR(klass);
+                        HANDLE_RAISE_RUNTIME_ERROR(vm::RtObject*, obj, vm::Object::new_object(klass));
+                        RtStackObject* frame_base = eval_stack_base + ir->frame_base;
+                        std::memmove(frame_base + 1, frame_base, static_cast<size_t>(ir->total_params_stack_object_size) * sizeof(RtStackObject));
+                        frame_base->obj = obj;
+                        metadata::AotInvoker invoker = ctor->invoke_method_ptr;
+                        HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(ctor->method_ptr, ctor, frame_base, frame_base));
+                    }
+                    LEANCLR_CASE_END1()
+                    LEANCLR_CASE_BEGIN1(NewValueTypeAot)
+                    {
+                        const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
+                        metadata::RtClass* klass = ctor->parent;
+                        RtStackObject* original_frame_base = eval_stack_base + ir->frame_base;
+                        const size_t value_stack_objects = InterpDefs::get_stack_object_size_by_byte_size(klass->instance_size_without_header);
+                        RtStackObject* final_frame_base = original_frame_base + value_stack_objects;
+                        std::memmove(final_frame_base + 1, original_frame_base,
+                                     static_cast<size_t>(ir->total_params_stack_object_size) * sizeof(RtStackObject));
+                        final_frame_base->ptr = original_frame_base;
+                        std::memset(original_frame_base, 0, value_stack_objects * sizeof(RtStackObject));
+                        metadata::AotInvoker invoker = ctor->invoke_method_ptr;
+                        HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(ctor->method_ptr, ctor, final_frame_base, final_frame_base));
                     }
                     LEANCLR_CASE_END1()
                     LEANCLR_CASE_BEGIN1(Throw)

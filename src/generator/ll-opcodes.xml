@@ -1541,6 +1541,12 @@
     <opcode name="CallIntrinsic_S" base="CallIntrinsic" prefix="0"/>
     <opcode name="CallPInvoke" base="CallPInvoke" prefix="1"/>
     <opcode name="CallPInvoke_S" base="CallPInvoke" prefix="0"/>
+    <tplopcode name="CallAot" hlopcode="CallAot">
+        <param name="method_idx" arg="resolved_data_index" arg_kind="resolved_data"/>
+        <param name="frame_base" arg="frame_base" arg_kind="stack_const"/>
+    </tplopcode>
+    <opcode name="CallAot" base="CallAot" prefix="1"/>
+    <opcode name="CallAot_S" base="CallAot" prefix="0"/>
     <tplopcode name="CallRuntimeImplemented" hlopcode="Call">
         <param name="method_idx" arg="resolved_data_index" arg_kind="resolved_data"/>
         <param name="frame_base" arg="frame_base" arg_kind="stack_const"/>
@@ -1589,6 +1595,16 @@
     </tplopcode>
     <opcode name="NewObjIntrinsic" base="NewObjIntrinsic" prefix="1"/>
     <opcode name="NewObjIntrinsic_S" base="NewObjIntrinsic" prefix="0"/>
+    <tplopcode name="NewObjAot" hlopcode="NewObjAot">
+        <param name="method_idx" arg="resolved_data_index" arg_kind="resolved_data"/>
+        <!-- <param name="invoker_idx" arg="aot_invoker_idx" arg_kind="aot_invoker_idx"/> -->
+        <param name="frame_base" arg="frame_base" arg_kind="stack_const"/>
+        <param name="total_params_stack_object_size" arg="total_params_stack_object_size" arg_kind="const"/>
+    </tplopcode>
+    <opcode name="NewObjAot" base="NewObjAot" prefix="1"/>
+    <opcode name="NewObjAot_S" base="NewObjAot" prefix="0"/>
+    <opcode name="NewValueTypeAot" base="NewObjAot" prefix="1"/>
+    <opcode name="NewValueTypeAot_S" base="NewObjAot" prefix="0"/>
 
     <!-- <tplopcode name="CallDelegateInvoke" hlopcode="Call">
         <param name="method_idx" arg="resolved_data_index" arg_kind="resolved_data"/>

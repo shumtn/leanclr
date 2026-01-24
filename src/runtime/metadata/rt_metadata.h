@@ -12,6 +12,8 @@ struct RtInterpMethodInfo;
 namespace leanclr::metadata
 {
 
+typedef void (*RtFnPtr)();
+
 // Element type enumeration
 enum class RtElementType : uint8_t
 {
@@ -525,6 +527,8 @@ enum class RtInvokerType : uint8_t
     Interpreter,
     InterpreterVirtualAdjustThunk,
     RuntimeImpl,
+    Aot,
+    AotVirtualAdjustThunk,
     NewObjInternalCall,
     NewObjIntrinsic,
 };
@@ -854,6 +858,37 @@ constexpr size_t ASSEMBLY_ID_BITS = 12;
 constexpr size_t MODULE_ID_SHIFT_AMOUNT = 32 - ASSEMBLY_ID_BITS;
 constexpr size_t MAX_METADATA_RID = (1 << MODULE_ID_SHIFT_AMOUNT) - 1;
 constexpr size_t MAX_ASSEMBLY_ID_COUNT = 1 << ASSEMBLY_ID_BITS;
+
+typedef void (*RtAotModuleInitializer)(RtModuleDef* mod);
+
+struct RtAotMethodDefData
+{
+    EncodedTokenId token;
+    RtManagedMethodPointer method_ptr;
+    RtInvokeMethodPointer invoke_method_ptr;
+    RtInvokeMethodPointer virtual_invoke_method_ptr;
+};
+
+struct RtAotMethodImplData
+{
+    RtManagedMethodPointer method_ptr;
+    RtInvokeMethodPointer invoke_method_ptr;
+    RtInvokeMethodPointer virtual_invoke_method_ptr;
+};
+
+struct RtAotModuleData
+{
+    const char* module_name;
+    RtAotModuleInitializer initializer;
+    const RtAotMethodDefData* method_def_entries;
+    uint32_t method_def_entry_count;
+};
+
+struct RtAotModulesData
+{
+    const RtAotModuleData** modules;
+    uint32_t module_count;
+};
 
 class RtMetadata
 {

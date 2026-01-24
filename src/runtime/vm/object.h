@@ -28,8 +28,8 @@ class Object
     static RtResult<const void*> unbox_ex(const RtObject* obj, metadata::RtClass* unbox_class);
 
     // Type checking and casting
-    static const RtObject* is_inst(const RtObject* obj, metadata::RtClass* klass);
-    static const RtObject* cast_class(const RtObject* obj, metadata::RtClass* klass);
+    static RtObject* is_inst(RtObject* obj, metadata::RtClass* klass);
+    static RtObject* cast_class(RtObject* obj, metadata::RtClass* klass);
 
     // Clone an object
     static RtResult<RtObject*> clone(RtObject* obj);

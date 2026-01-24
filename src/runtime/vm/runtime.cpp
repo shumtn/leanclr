@@ -20,6 +20,7 @@
 
 #include "metadata/metadata_cache.h"
 #include "metadata/module_def.h"
+#include "metadata/aot_module.h"
 #include "alloc/general_allocation.h"
 #include "gc/garbage_collector.h"
 #include "interp/machine_state.h"
@@ -360,6 +361,12 @@ RtResultVoid Runtime::initialize()
     InternalCalls::initialize();
     PInvokes::initialize();
 
+    auto aot_modules_data = Settings::get_aot_modules_data();
+    if (aot_modules_data != nullptr)
+    {
+        metadata::AotModule::register_aot_modules(aot_modules_data);
+    }
+
     auto internal_func_initializer = Settings::get_internal_functions_initializer();
     if (internal_func_initializer != nullptr)
     {
@@ -520,6 +527,15 @@ RtResultVoid Runtime::invoke_stackobject_arguments_without_run_cctor(const metad
     assert(method);
 
     auto invoke_ptr = reinterpret_cast<metadata::RtInvokeMethodPointer>(method->invoke_method_ptr);
+    return invoke_ptr(method->method_ptr, method, params, ret);
+}
+
+RtResultVoid Runtime::virtual_invoke_stackobject_arguments_without_run_cctor(const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
+                                                                             interp::RtStackObject* ret)
+{
+    assert(method);
+
+    auto invoke_ptr = reinterpret_cast<metadata::RtInvokeMethodPointer>(method->virtual_invoke_method_ptr);
     return invoke_ptr(method->method_ptr, method, params, ret);
 }
 

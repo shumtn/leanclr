@@ -614,7 +614,7 @@ RtResult<RtReflectionMethodBody*> Method::create_reflection_method_body(const Rt
     const utils::Vector<metadata::RtExceptionClause>& raw_exception_clauses = raw_method_body.exception_clauses;
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(
         RtArray*, clause_arr,
-        Array::new_array_from_ele_klass(corlib_types.cls_reflection_exceptionhandlingclause, static_cast<int32_t>(raw_exception_clauses.size())));
+        Array::new_szarray_from_ele_klass(corlib_types.cls_reflection_exceptionhandlingclause, static_cast<int32_t>(raw_exception_clauses.size())));
     for (size_t i = 0; i < raw_exception_clauses.size(); ++i)
     {
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(
@@ -632,7 +632,7 @@ RtResult<RtReflectionMethodBody*> Method::create_reflection_method_body(const Rt
         RET_ERR_ON_FAIL(mod->read_local_var_sig(raw_method_body.local_var_sig_token, generic_container_context, generic_context, local_var_sigs));
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(
             RtArray*, localvar_arr,
-            Array::new_array_from_ele_klass(corlib_types.cls_reflection_localvariableinfo, static_cast<int32_t>(local_var_sigs.size())));
+            Array::new_szarray_from_ele_klass(corlib_types.cls_reflection_localvariableinfo, static_cast<int32_t>(local_var_sigs.size())));
         for (size_t i = 0; i < local_var_sigs.size(); ++i)
         {
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionLocalVariableInfo*, local_var_obj,

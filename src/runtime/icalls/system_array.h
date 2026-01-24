@@ -12,8 +12,8 @@ class SystemArray
 
     // System.Array icalls
     static RtResult<int32_t> get_rank(vm::RtArray* arr);
-    static RtResult<int32_t> get_length(vm::RtArray* arr, size_t dimension);
-    static RtResult<int32_t> get_lower_bound(vm::RtArray* arr, size_t dimension);
+    static RtResult<int32_t> get_length(vm::RtArray* arr, int32_t dimension);
+    static RtResult<int32_t> get_lower_bound(vm::RtArray* arr, int32_t dimension);
     static RtResult<vm::RtObject*> get_value(vm::RtArray* arr, vm::RtArray* indices);
     static RtResultVoid set_value(vm::RtArray* arr, vm::RtObject* value, vm::RtArray* indices);
     static RtResult<vm::RtObject*> get_value_impl(vm::RtArray* arr, int32_t global_index);

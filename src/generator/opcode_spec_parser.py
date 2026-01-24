@@ -80,6 +80,8 @@ class OpcodeParam:
                     self.type = self.get_type_by_shor_addr_or_no("u8", "u16")
                 case "stack" | "stack_const" | "resolved_data" | "invoker_idx":
                     self.type = self.get_type_by_shor_addr_or_no("u8", "u16")
+                case "aot_invoker_idx":
+                    self.type = self.get_type_by_shor_addr_or_no("u16", "u32")
                 case "target":
                     self.type = self.get_type_by_shor_addr_or_no("i8", "i32")
                 case "const":

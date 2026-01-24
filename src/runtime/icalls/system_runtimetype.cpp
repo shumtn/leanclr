@@ -510,8 +510,8 @@ RtResultVoid SystemRuntimeType::get_interface_map_data(vm::RtReflectionRuntimeTy
     }
     metadata::RtClass* cls_method_info = vm::Class::get_corlib_types().cls_reflection_method;
 
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, target_array, vm::Array::new_array_from_ele_klass(cls_method_info, interface_vir_method_count));
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, method_array, vm::Array::new_array_from_ele_klass(cls_method_info, interface_vir_method_count));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, target_array, vm::Array::new_szarray_from_ele_klass(cls_method_info, interface_vir_method_count));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, method_array, vm::Array::new_szarray_from_ele_klass(cls_method_info, interface_vir_method_count));
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const metadata::RtVirtualInvokeData*, vtable_start,
                                             vm::Method::get_interface_method_invoke_data(klass, interface_klass, 0));
@@ -748,7 +748,7 @@ RtResult<vm::RtArray*> SystemRuntimeType::get_generic_arguments_internal(vm::RtR
     {
         // Return generic parameters
         const metadata::RtGenericContainer* gc = klass->generic_container;
-        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, new_array, vm::Array::new_array_from_ele_klass(result_ele_klass, gc->generic_param_count));
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, new_array, vm::Array::new_szarray_from_ele_klass(result_ele_klass, gc->generic_param_count));
 
         for (uint32_t i = 0; i < gc->generic_param_count; ++i)
         {
@@ -766,7 +766,7 @@ RtResult<vm::RtArray*> SystemRuntimeType::get_generic_arguments_internal(vm::RtR
         // Return generic arguments from instantiated generic type
         const metadata::RtGenericInst* generic_inst = type_sig->data.generic_class->class_inst;
         uint8_t arg_count = generic_inst->generic_arg_count;
-        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, new_array, vm::Array::new_array_from_ele_klass(result_ele_klass, arg_count));
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, new_array, vm::Array::new_szarray_from_ele_klass(result_ele_klass, arg_count));
 
         for (uint8_t i = 0; i < arg_count; ++i)
         {
@@ -879,7 +879,7 @@ RtResult<vm::RtArray*> SystemRuntimeType::get_interfaces(vm::RtReflectionRuntime
     RET_ERR_ON_FAIL(vm::Class::initialize_interfaces(klass));
 
     const auto cls_systemtype = vm::Class::get_corlib_types().cls_systemtype;
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, interface_array, vm::Array::new_array_from_ele_klass(cls_systemtype, klass->interface_count));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtArray*, interface_array, vm::Array::new_szarray_from_ele_klass(cls_systemtype, klass->interface_count));
 
     // Fill array with interface type references
     for (uint32_t i = 0; i < klass->interface_count; ++i)

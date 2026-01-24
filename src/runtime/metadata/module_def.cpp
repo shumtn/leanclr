@@ -3,6 +3,7 @@
 #include "const_strs.h"
 #include "utils/rt_vector.h"
 #include "utils/string_util.h"
+#include "utils/hashmap.h"
 #include "alloc/general_allocator.h"
 #include "metadata/metadata_cache.h"
 #include "metadata/metadata_compare.h"
@@ -29,6 +30,7 @@ static uint32_t allocate_image_id()
 
 static utils::Vector<RtModuleDef*> g_loadedModuleDefs;
 static RtModuleDef* g_corlibModule = nullptr;
+
 
 void RtModuleDef::register_module_def(RtModuleDef* moduleDef)
 {

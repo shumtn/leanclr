@@ -1,0 +1,302 @@
+﻿using dnlib.DotNet;
+using dnlib.DotNet.Emit;
+using LeanAOT.Core;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace LeanAOT.ToCpp
+{
+    partial class MethodWriterBase
+    {
+        private bool TryEmitCallInstrinsic(Instruction inst, MethodDetail methodDetail, string methodVarName, List<EvalVariable> args, EvalVariable retVar)
+        {
+            MethodDef methodDef = methodDetail.MethodDef;
+            if (methodDef == null)
+            {
+                TypeSig declaringTypeSig = methodDetail.Method.DeclaringType.ToTypeSig();
+                if (declaringTypeSig.ElementType != ElementType.Array)
+                {
+                    throw new Exception("impossible: methodDef is null but the declaring type is not an array.");
+                }
+                switch (methodDetail.Method.Name)
+                {
+                case "Get":
+                {
+                    EmitCallMdArrayGetIntrinsic(inst, methodDetail, methodVarName, args, retVar);
+                    return true;
+                }
+                case "Set":
+                {
+                    EmitCallMdArraySetIntrinsic(inst, methodDetail, methodVarName, args, retVar);
+                    return true;
+                }
+                case "Address":
+                {
+                    EmitCallMdArrayAddressIntrinsic(inst, methodDetail, methodVarName, args, retVar);
+                    return true;
+                }
+                }
+                return false;
+            }
+            if (methodDef.Module.IsCoreLibraryModule == true)
+            {
+                return false;
+            }
+
+            UTF8String methodName = methodDef.Name;
+            TypeDef declaringType = methodDef.DeclaringType;
+            switch (declaringType.Name.ToString())
+            {
+            case "Object":
+            {
+                if (methodDef.Name == VmFunctionNames.Ctor)
+                {
+                    // System.Object's .ctor is an empty method, we can just ignore the call to it.
+                    return true;
+                }
+                break;
+            }
+            case "String":
+            {
+                throw new NotImplementedException("We haven't implemented intrinsic for System.String yet, and we also haven't encountered any call to System.String's instance method in our test cases, so we will just throw an exception here to make sure we won't miss it when we encounter it in the future.");
+            }
+            default:
+                break;
+            }
+
+            ITypeDefOrRef parentType = declaringType.BaseType;
+            TypeDef parentTypeDef = parentType.ResolveTypeDef();
+            if (parentTypeDef != null)
+            {
+                switch (parentTypeDef.Name.ToString())
+                {
+                case "MulticastDelegate":
+                {
+                    if (methodDef.Name == VmFunctionNames.Ctor)
+                    {
+                        // If the method is an override of System.Object's .ctor, we can also ignore the call to it.
+                        return true;
+                    }
+                    break;
+                }
+                default:
+                    break;
+                }
+            }
+
+            return false;
+        }
+
+
+        private bool TryEmitCallvirIntrinsic(Instruction inst, MethodDetail methodDetail, string methodVarName, List<EvalVariable> args, EvalVariable retVar)
+        {
+
+            return false;
+        }
+
+        private bool TryEmitNewobjIntrinsic(Instruction inst, MethodDetail methodDetail, string methodVarName, List<EvalVariable> args, EvalVariable retVar)
+        {
+            MethodDef methodDef = methodDetail.MethodDef;
+            if (methodDef == null)
+            {
+                TypeSig declaringTypeSig = methodDetail.Method.DeclaringType.ToTypeSig();
+                switch (declaringTypeSig.ElementType)
+                {
+                case ElementType.Array:
+                {
+                    EmitNewMdArrayIntrinsic(inst, methodDetail, methodVarName, args, retVar);
+                    return true;
+                }
+                default:
+                {
+                    throw new Exception("impossible: methodDef is null but the declaring type is not an array.");
+                }
+                }
+            }
+            if (methodDef.Module.IsCoreLibraryModule != true)
+            {
+                return false;
+            }
+
+            UTF8String methodName = methodDef.Name;
+            TypeDef declaringType = methodDef.DeclaringType;
+
+            if (MetaUtil.IsDerivedFromMulticastDelegate(declaringType))
+            {
+                // We will handle delegate creation in a special way, so we won't treat it as a normal newobj.
+                switch (methodName)
+                {
+                case VmFunctionNames.Ctor:
+                {
+                    EmitNewMulticastDelegateIntrinsic(inst, methodDetail, methodVarName, args, retVar);
+                    return true;
+                }
+                }
+                return false;
+            }
+            switch (methodDef.FullName)
+            {
+            case "System.String::.ctor(System.Char[])":
+            case "System.String::.ctor(System.Char[],System.Int32,System.Int32)":
+            case "System.String::.ctor(System.Char*)":
+            case "System.String::.ctor(System.Char*,System.Int32,System.Int32)":
+            case "System.String::.ctor(System.SByte*)":
+            case "System.String::.ctor(System.SByte*,System.Int32,System.Int32)":
+            case "System.String::.ctor(System.Char,System.Int32)":
+            case "System.String::.ctor(System.ReadOnlySpan`1<System.Char>)":
+            case "System.String::.ctor(System.SByte*,System.Int32,System.Int32,System.Text.Encoding)":
+            case "System.String::FastAllocateString":
+            case "System.String::InternalIntern":
+            case "System.String::InternalIsInterned":
+            {
+                throw new NotImplementedException();
+            }
+            }
+
+            return false;
+        }
+
+
+        private void DefineLengthsAndBoundsVar(List<EvalVariable> args, int rank)
+        {
+            if (args.Count == rank)
+            {
+                _bodyWriter.AddLine($"int32_t __lengths[] = {{{string.Join(" ,", args.Select(p => GetEvalVariableExprWithCast(p, "int32_t")))}}};");
+                _bodyWriter.AddLine($"int32_t* __lowerBounds = nullptr;");
+            }
+            else if (args.Count == rank * 2)
+            {
+                List<EvalVariable> lengthArgs = args.GetRange(0, rank).ToList();
+                List<EvalVariable> lowerBoundArgs = args.GetRange(rank, rank).ToList();
+                _bodyWriter.AddLine($"int32_t __lengths[] = {{{string.Join(" ,", lengthArgs.Select(p => GetEvalVariableExprWithCast(p, "int32_t")))}}};");
+                _bodyWriter.AddLine($"int32_t* __lowerBounds = {{{string.Join(" ,", lowerBoundArgs.Select(p => GetEvalVariableExprWithCast(p, "int32_t")))}}};");
+            }
+            else
+            {
+                throw new Exception("impossible: the number of parameters of a multidimensional array constructor should be either equal to the rank of the array or equal to the rank of the array multiplied by 2.");
+            }
+        }
+
+        private void DefineIndexVar(List<EvalVariable> args, int rank)
+        {
+            if (args.Count == rank)
+            {
+                _bodyWriter.AddLine($"int32_t __indexs[] = {{{string.Join(" ,", args.Select(p => GetEvalVariableExprWithCast(p, "int32_t")))}}};");
+            }
+            else
+            {
+                throw new Exception("impossible: the number of parameters of a multidimensional array constructor should be either equal to the rank of the array or equal to the rank of the array multiplied by 2.");
+            }
+        }
+
+        private void EmitNewMdArrayIntrinsic(Instruction inst, MethodDetail methodDetail, string methodVarName, List<EvalVariable> args, EvalVariable retVar)
+        {
+            if (args.Count < 1)
+            {
+                throw new Exception("impossible: the constructor of a multidimensional array should always have at least 1 parameters.");
+            }
+            ArraySig declaringTypeSig = (ArraySig)methodDetail.Method.DeclaringType.ToTypeSig().RemoveModifiers();
+            ParamDetail[] paramsIncludeThis = methodDetail.ParamsIncludeThis;
+            int rank = (int)declaringTypeSig.Rank;
+            _bodyWriter.AddLine($"{GetTypeName(retVar)} {GetEvalVariableName(retVar)};");
+            _bodyWriter.AddLine("{");
+            _bodyWriter.IncreaseIndent();
+            DefineLengthsAndBoundsVar(args, rank);
+            EmitAssignOrThrow(inst, retVar, $"{VmFunctionNames.NewMdArrayFromArrayKlass}({GetParentFromFullReferenceMethodVariable(methodVarName)}, __lengths, __lowerBounds)");
+            _bodyWriter.DecreaseIndent();
+            _bodyWriter.AddLine("}");
+        }
+
+        private void EmitCallMdArrayGetIntrinsic(Instruction inst, MethodDetail methodDetail, string methodVarName, List<EvalVariable> args, EvalVariable retVar)
+        {
+            if (args.Count < 2)
+            {
+                throw new Exception("impossible: the constructor of a multidimensional array should always have at least 2 parameters.");
+            }
+            ArraySig declaringTypeSig = (ArraySig)methodDetail.Method.DeclaringType.ToTypeSig().RemoveModifiers();
+            ParamDetail[] paramsIncludeThis = methodDetail.ParamsIncludeThis;
+            int rank = (int)declaringTypeSig.Rank;
+            EvalVariable arrVar = args[0];
+            EmitCheckNotNull(inst, arrVar);
+
+            //_bodyWriter.AddLine($"{GetTypeName(retVar)} {GetEvalVariableName(retVar)};");
+            _bodyWriter.AddLine("{");
+            _bodyWriter.IncreaseIndent();
+            DefineIndexVar(args.GetRange(1, args.Count - 1), rank);
+            string globalIndexVarName = "__globalIndex";
+            _bodyWriter.AddLine($"{VmFunctionNames.DECLARING_ASSIGN_OR_THROW}(int32_t, {globalIndexVarName}, {VmFunctionNames.GetMdArrayGlobalIndex}({GetVariableMayCast(arrVar, ConstStrings.ArrayPtrTypeName)}, __indexs), {_curMethodVar.GetFullReferenceVariableName()}, {GetCurrentIpOffset(inst)});");
+            ITypeDefOrRef elementType = methodDetail.RetType.ToTypeDefOrRef();
+            string elementTypeName = GetExactTypeName(elementType);
+            string loadElementDataExpr = $"{VmFunctionNames.GetArrayElementDataAt}<{elementTypeName}>({GetVariableMayCast(arrVar, ConstStrings.ArrayPtrTypeName)}, {globalIndexVarName})";
+            _bodyWriter.AddLine($"{GetEvalVariableName(retVar)} = {MayFoldCast(elementTypeName, GetTypeName(retVar), loadElementDataExpr)};");
+            _bodyWriter.DecreaseIndent();
+            _bodyWriter.AddLine("}");
+        }
+
+        private void EmitCallMdArraySetIntrinsic(Instruction inst, MethodDetail methodDetail, string methodVarName, List<EvalVariable> args, EvalVariable retVar)
+        {
+            if (args.Count < 3)
+            {
+                throw new Exception("impossible: the constructor of a multidimensional array should always have at least 3 parameters.");
+            }
+            ArraySig declaringTypeSig = (ArraySig)methodDetail.Method.DeclaringType.ToTypeSig().RemoveModifiers();
+            ParamDetail[] paramsIncludeThis = methodDetail.ParamsIncludeThis;
+            int rank = (int)declaringTypeSig.Rank;
+            EvalVariable arrVar = args[0];
+            EvalVariable valueVar = args.Last();
+            EmitCheckNotNull(inst, arrVar);
+
+            //_bodyWriter.AddLine($"{GetTypeName(retVar)} {GetEvalVariableName(retVar)};");
+            _bodyWriter.AddLine("{");
+            _bodyWriter.IncreaseIndent();
+            DefineIndexVar(args.GetRange(1, args.Count - 2), rank);
+            string globalIndexVarName = "__globalIndex";
+            _bodyWriter.AddLine($"{VmFunctionNames.DECLARING_ASSIGN_OR_THROW}(int32_t, {globalIndexVarName}, {VmFunctionNames.GetMdArrayGlobalIndex}({GetVariableMayCast(arrVar, ConstStrings.ArrayPtrTypeName)}, __indexs), {_curMethodVar.GetFullReferenceVariableName()}, {GetCurrentIpOffset(inst)});");
+            ITypeDefOrRef elementType = paramsIncludeThis.Last().Type.ToTypeDefOrRef();
+            string elementTypeName = GetExactTypeName(elementType);
+
+            string valueVarName = GetEvalVariableName(valueVar);
+            _bodyWriter.AddLine($"{VmFunctionNames.SetArrayElementDataAt}<{elementTypeName}>({GetVariableMayCast(arrVar, ConstStrings.ArrayPtrTypeName)}, {globalIndexVarName}, {GetEvalVariableExprWithCast(valueVar, elementTypeName)});");
+            _bodyWriter.DecreaseIndent();
+            _bodyWriter.AddLine("}");
+        }
+
+        private void EmitCallMdArrayAddressIntrinsic(Instruction inst, MethodDetail methodDetail, string methodVarName, List<EvalVariable> args, EvalVariable retVar)
+        {
+            if (args.Count < 2)
+            {
+                throw new Exception("impossible: the constructor of a multidimensional array should always have at least 2 parameters.");
+            }
+            ArraySig declaringTypeSig = (ArraySig)methodDetail.Method.DeclaringType.ToTypeSig().RemoveModifiers();
+            ParamDetail[] paramsIncludeThis = methodDetail.ParamsIncludeThis;
+            int rank = (int)declaringTypeSig.Rank;
+            EvalVariable arrVar = args[0];
+            EmitCheckNotNull(inst, arrVar);
+
+            //_bodyWriter.AddLine($"{GetTypeName(retVar)} {GetEvalVariableName(retVar)};");
+            _bodyWriter.AddLine("{");
+            _bodyWriter.IncreaseIndent();
+            DefineIndexVar(args.GetRange(1, args.Count - 1), rank);
+            string globalIndexVarName = "__globalIndex";
+            _bodyWriter.AddLine($"{VmFunctionNames.DECLARING_ASSIGN_OR_THROW}(int32_t, {globalIndexVarName}, {VmFunctionNames.GetMdArrayGlobalIndex}({GetVariableMayCast(arrVar, ConstStrings.ArrayPtrTypeName)}, __indexs), {_curMethodVar.GetFullReferenceVariableName()}, {GetCurrentIpOffset(inst)});");
+            ITypeDefOrRef elementType = methodDetail.RetType.Next.ToTypeDefOrRef();
+            string elementTypeName = GetExactTypeName(elementType);
+            string loadElementDataExpr = $"{VmFunctionNames.GetArrayElementAddress}<{elementTypeName}>({GetVariableMayCast(arrVar, ConstStrings.ArrayPtrTypeName)}, {globalIndexVarName})";
+            _bodyWriter.AddLine($"{GetEvalVariableName(retVar)} = {MayFoldCast($"{elementTypeName}*", GetTypeName(retVar), loadElementDataExpr)};");
+            _bodyWriter.DecreaseIndent();
+            _bodyWriter.AddLine("}");
+        }
+
+        private void EmitNewMulticastDelegateIntrinsic(Instruction inst, MethodDetail methodDetail, string methodVarName, List<EvalVariable> args, EvalVariable retVar)
+        {
+            if (args.Count != 2)
+            {
+                throw new Exception("impossible: the constructor of a delegate should always have 2 parameters.");
+            }
+            EmitDeclaringAssignOrThrow(inst, retVar, $"{VmFunctionNames.NewDelegate}({GetParentFromFullReferenceMethodVariable(methodVarName)}, ({ConstStrings.ObjectPtrTypeName}){GetEvalVariableName(args[0])}, ({ConstStrings.MethodInfoPtrTypeName}){GetEvalVariableName(args[1])})");
+        }
+    }
+}

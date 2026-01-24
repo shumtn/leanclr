@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
+typedef float float32_t;
+typedef double float64_t;
+
 #define LEANCLR_SUPPORT_UNALIGNED_ACCESS 1
 
 #if UINTPTR_MAX == 0xFFFFFFFF
@@ -25,7 +28,7 @@
 
 #if !NDEBUG
 #ifndef LEANCLR_ENABLE_FRAME_TRACE
-#define LEANCLR_ENABLE_FRAME_TRACE 1
+#define LEANCLR_ENABLE_FRAME_TRACE 0
 #endif
 #endif
 

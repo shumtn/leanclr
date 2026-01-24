@@ -239,7 +239,7 @@ RtResult<bool> SystemValueType::internal_equals(vm::RtObject* obj1, vm::RtObject
     {
         // Create array from uncompared fields
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(
-            vm::RtArray*, arr, vm::Array::new_array_from_ele_klass(vm::Class::get_corlib_types().cls_object, static_cast<int32_t>(uncompared_fields.size())));
+            vm::RtArray*, arr, vm::Array::new_szarray_from_ele_klass(vm::Class::get_corlib_types().cls_object, static_cast<int32_t>(uncompared_fields.size())));
 
         vm::RtObject** arr_data = vm::Array::get_array_data_start_as<vm::RtObject*>(arr);
         for (size_t i = 0; i < uncompared_fields.size(); ++i)
@@ -435,7 +435,7 @@ RtResult<int32_t> SystemValueType::internal_get_hash_code(vm::RtObject* obj, vm:
     {
         // Create array from uncomputed fields
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(
-            vm::RtArray*, arr, vm::Array::new_array_from_ele_klass(vm::Class::get_corlib_types().cls_object, static_cast<int32_t>(uncomputed_fields.size())));
+            vm::RtArray*, arr, vm::Array::new_szarray_from_ele_klass(vm::Class::get_corlib_types().cls_object, static_cast<int32_t>(uncomputed_fields.size())));
 
         vm::RtObject** arr_data = vm::Array::get_array_data_start_as<vm::RtObject*>(arr);
         for (size_t i = 0; i < uncomputed_fields.size(); ++i)

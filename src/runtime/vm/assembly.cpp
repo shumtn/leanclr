@@ -1,6 +1,7 @@
 #include "assembly.h"
 
 #include "metadata/module_def.h"
+#include "metadata/aot_module.h"
 #include "alloc/general_allocation.h"
 #include "alloc/mem_pool.h"
 #include "utils/rt_unique_ptr.h"
@@ -112,6 +113,15 @@ RtResult<metadata::RtAssembly*> Assembly::load_from_data(const utils::Span<byte>
         RET_ERR(RtErr::ModuleAlreadyLoaded);
     }
     metadata::RtModuleDef::register_module_def(mod);
+    const metadata::RtAotModuleData* aotModuleData = metadata::AotModule::find_aot_module_by_name(mod->get_name_no_ext());
+    if (aotModuleData != nullptr)
+    {
+        mod->set_aot_module_data(aotModuleData);
+        if (aotModuleData->initializer != nullptr)
+        {
+            aotModuleData->initializer(mod);
+        }
+    }
 
     // don't free mem pool if succ
     poolGuard.release();
@@ -143,7 +153,7 @@ RtResult<RtArray*> Assembly::get_types(metadata::RtAssembly* ass, bool exported_
     RET_ERR_ON_FAIL(ass->mod->get_types(exported_only, types));
 
     metadata::RtClass* cls_type = Class::get_corlib_types().cls_systemtype;
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, types_arr, Array::new_array_from_ele_klass(cls_type, static_cast<int32_t>(types.size())));
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, types_arr, Array::new_szarray_from_ele_klass(cls_type, static_cast<int32_t>(types.size())));
 
     for (size_t i = 0; i < types.size(); ++i)
     {

@@ -169,10 +169,12 @@
     <opcode name="CallInternalCall" params="method,args"/>
     <opcode name="CallIntrinsic" params="method,args"/>
     <opcode name="CallPInvoke" params="method,args"/>
+    <opcode name="CallAot" params="method,args"/>
     <opcode name="Calli" params="sig,args"/>
     <opcode name="NewObj" params="method,args"/>
     <opcode name="NewObjInternalCall" params="method,args"/>
     <opcode name="NewObjIntrinsic" params="method,args"/>
+    <opcode name="NewObjAot" params="method,args"/>
     <opcode name="CallRuntimeImplemented" params="method,args"/>
     <opcode name="Ldftn" params="method,dst"/>
     <opcode name="Ldvirtftn" params="method,src,dst"/>

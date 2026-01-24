@@ -1506,7 +1506,6 @@ RtResultVoid Transformer::transform_instructions()
                 ll_inst->set_opcode(OpCodeEnum::StelemRef);
                 setup_inst_klass(ll_inst, hl_inst);
                 break;
-
             case hl::OpCodeEnum::StelemAny:
             {
                 metadata::RtClass* ele_klass = hl_inst->get_class();
@@ -1515,7 +1514,6 @@ RtResultVoid Transformer::transform_instructions()
                 setup_inst_klass(ll_inst, hl_inst);
                 break;
             }
-
             case hl::OpCodeEnum::MkRefAny:
                 ll_inst->set_opcode(OpCodeEnum::MkRefAny);
                 setup_inst_klass(ll_inst, hl_inst);
@@ -1531,10 +1529,11 @@ RtResultVoid Transformer::transform_instructions()
                 break;
 
             case hl::OpCodeEnum::LdToken:
+            {
                 ll_inst->set_opcode(OpCodeEnum::LdToken);
                 setup_inst_resolved_data(ll_inst, (const void*)hl_inst->get_runtime_handle().get_handle_without_type());
                 break;
-
+            }
             case hl::OpCodeEnum::Ckfinite:
             {
                 const Variable* dst = hl_inst->get_var_dst();
@@ -1553,19 +1552,21 @@ RtResultVoid Transformer::transform_instructions()
                 ll_inst->set_opcode(op);
                 break;
             }
-
             case hl::OpCodeEnum::LocAlloc:
+            {
                 ll_inst->set_opcode(OpCodeEnum::LocAlloc);
                 break;
-
+            }
             case hl::OpCodeEnum::InitBlk:
+            {
                 ll_inst->set_opcode(OpCodeEnum::InitBlk);
                 break;
-
+            }
             case hl::OpCodeEnum::CpBlk:
+            {
                 ll_inst->set_opcode(OpCodeEnum::CpBlk);
                 break;
-
+            }
             case hl::OpCodeEnum::Ldfld:
             {
                 size_t field_offset = ll_inst->get_field_offset();
@@ -1645,7 +1646,6 @@ RtResultVoid Transformer::transform_instructions()
                 ll_inst->set_opcode(op);
                 break;
             }
-
             case hl::OpCodeEnum::Ldvfld:
             {
                 size_t field_offset = ll_inst->get_field_offset();
@@ -1751,7 +1751,6 @@ RtResultVoid Transformer::transform_instructions()
                 ll_inst->set_opcode(op);
                 break;
             }
-
             case hl::OpCodeEnum::Ldflda:
             {
                 size_t field_offset = ll_inst->get_field_offset();
@@ -1759,7 +1758,6 @@ RtResultVoid Transformer::transform_instructions()
                 ll_inst->set_opcode(use_large_addressing ? OpCodeEnum::LdfldaLarge : OpCodeEnum::Ldflda);
                 break;
             }
-
             case hl::OpCodeEnum::Stfld:
             {
                 size_t field_offset = ll_inst->get_field_offset();
@@ -1827,7 +1825,6 @@ RtResultVoid Transformer::transform_instructions()
                 ll_inst->set_opcode(op);
                 break;
             }
-
             case hl::OpCodeEnum::Ldsfld:
             {
                 const metadata::RtFieldInfo* field = hl_inst->get_field();
@@ -1869,7 +1866,6 @@ RtResultVoid Transformer::transform_instructions()
                 setup_inst_resolved_data(ll_inst, field);
                 break;
             }
-
             case hl::OpCodeEnum::Ldsflda:
             {
                 const metadata::RtFieldInfo* field = hl_inst->get_field();
@@ -1886,7 +1882,6 @@ RtResultVoid Transformer::transform_instructions()
                 }
                 break;
             }
-
             case hl::OpCodeEnum::Stsfld:
             {
                 const metadata::RtFieldInfo* field = hl_inst->get_field();
@@ -1924,7 +1919,6 @@ RtResultVoid Transformer::transform_instructions()
                 setup_inst_resolved_data(ll_inst, field);
                 break;
             }
-
             case hl::OpCodeEnum::Call:
             {
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, handled, transform_special_call_methods(ll_inst, hl_inst));
@@ -1935,12 +1929,10 @@ RtResultVoid Transformer::transform_instructions()
                 }
                 break;
             }
-
             case hl::OpCodeEnum::CallVirt:
                 ll_inst->set_opcode(OpCodeEnum::CallVirtInterp);
                 setup_inst_method(ll_inst, hl_inst);
                 break;
-
             case hl::OpCodeEnum::CallInternalCall:
             {
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, handled, transform_special_call_methods(ll_inst, hl_inst));
@@ -1951,7 +1943,6 @@ RtResultVoid Transformer::transform_instructions()
                 }
                 break;
             }
-
             case hl::OpCodeEnum::CallIntrinsic:
             {
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, handled, transform_special_call_methods(ll_inst, hl_inst));
@@ -1962,22 +1953,28 @@ RtResultVoid Transformer::transform_instructions()
                 }
                 break;
             }
-
             case hl::OpCodeEnum::CallPInvoke:
+            {
                 ll_inst->set_opcode(OpCodeEnum::CallPInvoke);
                 setup_inst_method(ll_inst, hl_inst);
                 break;
-
+            }
+            case hl::OpCodeEnum::CallAot:
+            {
+                ll_inst->set_opcode(OpCodeEnum::CallAot);
+                setup_inst_method(ll_inst, hl_inst);
+                break;
+            }
             case hl::OpCodeEnum::CallRuntimeImplemented:
+            {
                 ll_inst->set_opcode(OpCodeEnum::CallRuntimeImplemented);
                 setup_inst_method(ll_inst, hl_inst);
                 break;
-
+            }
             case hl::OpCodeEnum::Calli:
                 ll_inst->set_opcode(OpCodeEnum::CalliInterp);
                 setup_inst_method(ll_inst, hl_inst);
                 break;
-
             case hl::OpCodeEnum::NewObj:
             {
                 const metadata::RtMethodInfo* method = hl_inst->get_method();
@@ -1986,7 +1983,6 @@ RtResultVoid Transformer::transform_instructions()
                 setup_inst_method(ll_inst, hl_inst);
                 break;
             }
-
             case hl::OpCodeEnum::NewObjInternalCall:
             {
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, handled, transform_special_newobj_methods(ll_inst, hl_inst));
@@ -1997,7 +1993,6 @@ RtResultVoid Transformer::transform_instructions()
                 }
                 break;
             }
-
             case hl::OpCodeEnum::NewObjIntrinsic:
             {
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, handled, transform_special_newobj_methods(ll_inst, hl_inst));
@@ -2008,25 +2003,36 @@ RtResultVoid Transformer::transform_instructions()
                 }
                 break;
             }
-
+            case hl::OpCodeEnum::NewObjAot:
+            {
+                const metadata::RtMethodInfo* method = hl_inst->get_method();
+                OpCodeEnum op = vm::Class::is_value_type(method->parent) ? OpCodeEnum::NewValueTypeAot : OpCodeEnum::NewObjAot;
+                ll_inst->set_opcode(op);
+                setup_inst_method(ll_inst, hl_inst);
+                break;
+            }
             case hl::OpCodeEnum::Ldftn:
+            {
                 ll_inst->set_opcode(OpCodeEnum::Ldftn);
                 setup_inst_resolved_data(ll_inst, hl_inst->get_method());
                 break;
-
+            }
             case hl::OpCodeEnum::Ldvirtftn:
+            {
                 ll_inst->set_opcode(OpCodeEnum::Ldvirtftn);
                 setup_inst_resolved_data(ll_inst, hl_inst->get_method());
                 break;
-
+            }
             case hl::OpCodeEnum::Throw:
+            {
                 ll_inst->set_opcode(OpCodeEnum::Throw);
                 break;
-
+            }
             case hl::OpCodeEnum::Rethrow:
+            {
                 ll_inst->set_opcode(OpCodeEnum::Rethrow);
                 break;
-
+            }
             case hl::OpCodeEnum::Leave:
             {
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(BasicBlock*, leave_target, translate_hl_basic_to_ll_basic(hl_inst->get_leave_target()));
@@ -2073,11 +2079,11 @@ RtResultVoid Transformer::transform_instructions()
                 }
                 break;
             }
-
             case hl::OpCodeEnum::EndFilter:
+            {
                 ll_inst->set_opcode(OpCodeEnum::EndFilter);
                 break;
-
+            }
             case hl::OpCodeEnum::EndFinallyOrFault:
             {
                 metadata::RtILExceptionClauseType clause_type = get_cur_endfinally_or_fault_clause_type(cur_bb);
@@ -2099,9 +2105,10 @@ RtResultVoid Transformer::transform_instructions()
             }
 
             case hl::OpCodeEnum::GetEnumLongHashCode:
+            {
                 ll_inst->set_opcode(OpCodeEnum::GetEnumLongHashCode);
                 break;
-
+            }
             default:
                 RET_ERR(core::RtErr::NotImplemented);
             }

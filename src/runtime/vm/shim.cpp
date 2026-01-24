@@ -7,9 +7,12 @@
 #include "intrinsics.h"
 #include "pinvoke.h"
 #include "const_strs.h"
+#include "method.h"
 #include "interp/interpreter.h"
 #include "utils/string_builder.h"
 #include "metadata/metadata_name.h"
+#include "metadata/module_def.h"
+#include "metadata/aot_module.h"
 
 namespace leanclr::vm
 {
@@ -261,7 +264,15 @@ RtResult<InvokeTypeAndMethod> Shim::get_invoker(const metadata::RtMethodInfo* me
             }
         }
 
-        RET_OK(InvokeTypeAndMethod(RtInvokerType::Interpreter, fn_interpreter_invoker));
+        std::optional<metadata::RtAotMethodImplData> aot_data = metadata::AotModule::find_aot_method_impl(method);
+        if (aot_data.has_value())
+        {
+            RET_OK(InvokeTypeAndMethod(RtInvokerType::Aot, aot_data->invoke_method_ptr, aot_data->virtual_invoke_method_ptr));
+        }
+
+        auto virtual_invoker =
+            Method::is_static(method) || !Class::is_value_type(method->parent) ? fn_interpreter_invoker : fn_interpreter_virtual_adjust_thunk_invoker;
+        RET_OK(InvokeTypeAndMethod(RtInvokerType::Interpreter, fn_interpreter_invoker, virtual_invoker));
     }
 
     case metadata::RtMethodImplAttribute::Native:
@@ -309,29 +320,18 @@ RtResult<InvokeTypeAndMethod> Shim::get_invoker(const metadata::RtMethodInfo* me
     }
 }
 
-// Get virtual invoker - adjusts for value types if needed
-metadata::RtInvokeMethodPointer Shim::get_virtual_invoker(const metadata::RtMethodInfo* method, const InvokeTypeAndMethod& invoker_data)
-{
-    // If the class is a reference type, use the regular invoker
-    if (!Class::is_value_type(method->parent))
-    {
-        return invoker_data.invoker;
-    }
-
-    // For value types, check if we need to use virtual adjust thunk
-    switch (invoker_data.invoker_type)
-    {
-    case RtInvokerType::Interpreter:
-        return fn_interpreter_virtual_adjust_thunk_invoker;
-
-    default:
-        return invoker_data.invoker;
-    }
-}
-
 // Get method pointer (for native/unmanaged methods)
 metadata::RtManagedMethodPointer Shim::get_method_pointer(const metadata::RtMethodInfo* method)
 {
+    const metadata::RtAotModuleData* aotModuleData = method->parent->image->get_aot_module_data();
+    if (aotModuleData != nullptr)
+    {
+        std::optional<metadata::RtAotMethodImplData> aot_data = metadata::AotModule::find_aot_method_impl(method);
+        if (aot_data.has_value())
+        {
+            return aot_data->method_ptr;
+        }
+    }
     // Placeholder - returns not implemented method pointer
     return reinterpret_cast<metadata::RtManagedMethodPointer>(fn_not_implemented_method_pointer);
 }

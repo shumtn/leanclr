@@ -98,13 +98,15 @@ struct RtILEHSectionHeaderFat
     RtILEHFat clauses[1]; // trailing data
 };
 
+class RtModuleDef;
+
 class RtModuleDef
 {
   public:
     RtModuleDef(RtAssembly* assembly, const CliImage& cliImage, PdbImage* pdbImage, alloc::MemPool& pool)
-        : _assembly(assembly), _cliImage(cliImage), _pdbImage(pdbImage), _pool(pool), _name(nullptr), _nameNoExt(nullptr), _classes(nullptr), _classCount(0),
-          _methods(nullptr), _methodCount(0), _id(0), _refOnly(false), _referenceAssemblies(nullptr), _referenceAssemblyCount(0), _corLib(false),
-          _moduleCctorFinished(false)
+        : _assembly(assembly), _aotModuleData(nullptr), _cliImage(cliImage), _pdbImage(pdbImage), _pool(pool), _name(nullptr), _nameNoExt(nullptr),
+          _classes(nullptr), _classCount(0), _methods(nullptr), _methodCount(0), _id(0), _refOnly(false), _referenceAssemblies(nullptr),
+          _referenceAssemblyCount(0), _corLib(false), _moduleCctorFinished(false)
     {
     }
 
@@ -117,6 +119,16 @@ class RtModuleDef
     RtAssembly* get_assembly() const
     {
         return _assembly;
+    }
+
+    const RtAotModuleData* get_aot_module_data() const
+    {
+        return _aotModuleData;
+    }
+
+    void set_aot_module_data(const RtAotModuleData* aotModuleData)
+    {
+        _aotModuleData = aotModuleData;
     }
 
     const CliImage& get_cli_image() const
@@ -388,6 +400,8 @@ class RtModuleDef
     const CliImage& _cliImage;
     PdbImage* _pdbImage;
     alloc::MemPool& _pool;
+
+    const RtAotModuleData* _aotModuleData;
     RtAssembly* const _assembly;
 
     const char* _name;
@@ -399,12 +413,12 @@ class RtModuleDef
     uint32_t _classCount;
     const RtMethodInfo** _methods;
     uint32_t _methodCount;
-    RtTypeSig* _typeDefByValTypeSigs;
-    RtTypeSig* _typeDefByRefTypeSigs;
-    RtGenericParam* _genericParams;
+    RtTypeSig* _typeDefByValTypeSigs{};
+    RtTypeSig* _typeDefByRefTypeSigs{};
+    RtGenericParam* _genericParams{};
     utils::HashMap<uint32_t, RtGenericContainer*> _genericContainers;
-    RtTypeSig* _genericParamByValTypeSigs;
-    RtTypeSig* _genericParamByRefTypeSigs;
+    RtTypeSig* _genericParamByValTypeSigs{};
+    RtTypeSig* _genericParamByRefTypeSigs{};
 
     struct EnclosingTypeInfo
     {
@@ -418,7 +432,7 @@ class RtModuleDef
     utils::HashMap<utils::FullNameStr, uint32_t, utils::FullNameStrHasher, utils::FullNameStrCompare> _typeDefFullName2TypeDefRidMap;
     utils::HashMap<utils::FullNameStr, RtToken, utils::FullNameStrHasher, utils::FullNameStrCompare> _typeDefFullName2ExportedTypeRidMap;
 
-    RtAssemblyName _assemblyName;
+    RtAssemblyName _assemblyName{};
     uint32_t _id;
     bool _refOnly;
     bool _corLib;
