@@ -151,7 +151,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE int32_t initialize_runtime()
     auto result = vm::Runtime::initialize();
     if (result.is_err())
     {
-        return 1 + (int32_t)result.unwrap_err();
+        return (int32_t)result.unwrap_err();
     }
     runtime_initialized = true;
     return 0;
