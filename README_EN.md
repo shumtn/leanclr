@@ -6,98 +6,152 @@ Language: [中文](./README.md) | [English](./README_EN.md)
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/focus-creative-games/leanclr/blob/main/LICENSE) [![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/focus-creative-games/leanclr) [![Discord](https://img.shields.io/badge/Discord-Join-7289DA?logo=discord&logoColor=white)](https://discord.gg/esAYcM6RDQ)
 
-LeanCLR is a lean, cross-platform CLR (Common Language Runtime) implementation. LeanCLR is designed to be highly compliant with the ECMA-335 specification while providing a more compact, embeddable, and low-memory-footprint runtime, offering friendly support for resource-constrained platforms such as mobile devices, H5, and mini-games.
+LeanCLR is a cross-platform, lightweight implementation of the Common Language Runtime (CLR). Designed for high ECMA-335 compliance, LeanCLR delivers a compact, embeddable, and low-memory runtime, making it ideal for resource-constrained platforms such as mobile, H5, and mini-game environments.
 
-## Why LeanCLR
+## Why LeanCLR?
 
-There are already mature CLR implementations like CoreCLR, Mono, and IL2CPP. Why do we need LeanCLR?
+While mature CLR implementations like CoreCLR, Mono, and IL2CPP exist, LeanCLR addresses several key pain points:
 
-### Limitations of Existing Solutions
+1. CoreCLR, Mono, and IL2CPP produce large binaries (several MBs to tens of MBs), making them unsuitable for mobile apps, H5, or mini-game platforms.
+2. IL2CPP is closed-source, supports only AOT, and has limited ECMA-335 compliance.
+3. CoreCLR is complex and large; Mono’s codebase is dated and difficult to modify or port to new platforms.
 
-| Runtime | Main Issues |
-|---------|-------------|
-| **CoreCLR** | Large footprint (tens of MB), high code complexity, difficult to trim and embed; not suitable for resource-constrained scenarios |
-| **Mono** | Heavy legacy burden, complex architecture; still relatively large even after trimming; high maintenance and customization costs |
-| **IL2CPP** | Closed source, AOT only; limited ECMA-335 completeness; high wasm binary size and memory usage |
+LeanCLR is designed from scratch with the following core goals:
 
-### LeanCLR's Design Philosophy
+- **Ultra-compact** — Single-threaded builds are under **600 KB** on x64/WebAssembly, and can be trimmed to **300 KB**
+- **Excellent cross-platform support** — Standard C++17 implementation with zero platform dependencies. Uses an AOT + Interpreter hybrid execution model (no JIT), ensuring seamless portability to any C++17-compliant platform.
+- **Easy integration** — Simple build process; just include LeanCLR’s CMakeLists.txt. The CLR API is clear and far easier to integrate than CoreCLR or Mono.
+- **Maintainability** — Clean, understandable code structure, easy to customize and extend.
 
-LeanCLR is designed from scratch, focusing on the following core goals:
+LeanCLR is especially suitable for:
 
-- **Ultra Compact** — Single-threaded version is only about **600 KB** on Win64/WebAssembly, can be trimmed down to **300 KB**
-- **Easy to Embed** — Pure C++17 implementation with no external dependencies, easily integrates into any C++ project
-- **Cross-Platform Consistency** — AOT + Interpreter hybrid mode, no JIT, ensuring consistent behavior across all platforms
-- **Maintainability** — Clean code structure, easy to understand, customize, and extend
+- Mobile games and apps (iOS/Android)
+- H5 and mini-game platforms (WeChat Mini Games, TikTok Mini Games, etc.)
+- Game clients requiring hot-update capabilities
+- Embedded systems and IoT devices
 
-LeanCLR is particularly suitable for:
-
-- 📱 Mobile games and applications (iOS/Android)
-- 🌐 H5 games and mini-game platforms (WeChat Mini Games, TikTok Mini Games, etc.)
-- 🎮 Game clients requiring hot-update capabilities
-- 🔧 Embedded systems and IoT devices
-
-## Features and Advantages
+## Features & Advantages
 
 ### Standards Compliance
 
-- **Highly Compatible with ECMA-335** — Nearly complete CLI specification implementation, coverage exceeds `IL2CPP + HybridCLR`
-- **Modern C# Feature Support** — Full support for generics, exception handling, reflection, delegates, LINQ, and other core features
-- **CoreCLR Extension Support** (Planned) — Static abstract interface methods (.NET 7+) and other extension features
-- **Lean Design** — Only removes deprecated features (such as `arglist`, `jmp` instructions)
+- **High ECMA-335 compatibility** — Nearly complete implementation, more complete than `IL2CPP + HybridCLR`, slightly less than Mono.
+- **Modern C# feature support** — Full support for generics, exception handling, reflection, delegates, LINQ, etc.
+- **CoreCLR extensions** (planned) — e.g., static abstract interface methods (.NET 7+)
+- **Lean design** — Only removes deprecated features (e.g., `arglist`, `jmp`)
 
 ### Ultra Lightweight
 
-- **Minimal Footprint** — Single-threaded version is about **600 KB**; can be reduced to **300 KB** or less by trimming IR interpreter and non-essential icalls
-- **Low Memory Usage** — Optimized metadata representation with on-demand method body metadata reclamation
-- **Fine-Grained Alignment** — Uses separate allocation pools based on actual alignment requirements of metadata/managed objects, avoiding the waste of uniform 8-byte alignment
-- **Compact Object Header** — Single-threaded version object header is only one pointer size
+- **Tiny binary size** — Single-threaded builds ~**600 KB**; can be reduced to **300 KB** by trimming IR interpreter and non-essential icalls
+- **Low memory usage** — Optimized metadata representation, with on-demand method body metadata reclamation
+- **Fine-grained alignment** — Separate allocation pools for metadata/managed objects based on actual alignment needs, avoiding waste from uniform 8-byte alignment
+- **Compact object header** — Single-threaded object header is just one pointer in size
 
-### Execution Modes
+### Efficient, Modern Execution Model
 
-- **AOT + Interpreter Hybrid Execution** — Balances startup speed and runtime efficiency with consistent cross-platform behavior
-- **Dual Interpreter Architecture** — IL interpreter handles cold paths, IR interpreter optimizes hot functions, balancing compilation overhead and execution performance
-- **Function-Level AOT** — Supports per-function AOT or interpretation, enabling fine-grained trade-offs between binary size and performance
-- **Exception Path Fallback** — Exception handling is uniformly handled by the interpreter, significantly reducing AOT code size
+- **AOT + Interpreter hybrid** — Balances startup speed and runtime efficiency, with excellent cross-platform portability
+- **Dual-interpreter architecture** — IL interpreter for cold paths, IR interpreter for hot functions, balancing compile overhead and performance
+- **Function-level AOT** — Each managed function can be individually AOT-compiled; only performance-critical functions need AOT, minimizing binary size while maintaining performance
+- **Exception fallback** — Exception handling is unified in the interpreter, greatly reducing AOT code size
 
-### Cross-Platform Capabilities
+### Cross-Platform Capability
 
-- **Pure C++ Implementation** — Based on C++17 standard with zero platform-specific dependencies
-- **No Exception Mechanism Dependency** — Does not rely on C++ exceptions, can compile and run in environments with exceptions disabled
-- **Zero Porting Cost** — Can be compiled directly to any platform supporting C++17 (Windows, Linux, macOS, iOS, Android, WebAssembly, etc.)
+- **Pure C++ implementation** — C++17 standard, zero platform-specific dependencies
+- **No C++ exception dependency** — Can be built and run in environments with exceptions disabled
+- **Zero porting cost** — Compiles directly to any C++17 platform (Windows, Linux, macOS, iOS, Android, WebAssembly, etc.)
 
-### Code Quality
+## Documentation
 
-- **Clear Structure** — Modular design with clear responsibilities, easy to understand and navigate
-- **Easy to Customize** — Clean codebase makes it easy to trim and extend based on requirements
-- **Easy to Optimize** — Clear execution paths make performance bottlenecks easy to identify and optimize
+See the [docs](./docs) directory for detailed documentation:
+
+- [Documentation Overview](./docs/README.md)
+- [Build Documentation](./docs/build/README.md)
+- [Building the Runtime](./docs/build/build_runtime.md)
+- [Embedding LeanCLR](./docs/build/embed_leanclr.md)
+- [Test Framework](./src/tests/README.md)
+
+## Integrated Engines & Platforms
+
+LeanCLR is fully cross-platform. For developer convenience, we provide integrations for certain platforms:
+
+| Platform | Status | Notes |
+|---|---|---|
+| WeChat Mini Games & Apps | Partial | [WeChat SDK](https://github.com/focus-creative-games/leanclr-sdk) available; some APIs wrapped for pure C# development |
+| **Unity & Unity WebGL/Mini Game** | In development | ETA: March 2026 |
+| **Unreal Engine (all platforms)** | In development | Release date TBD |
+| **Godot (all platforms)** | In development | Release date TBD |
+
+## Project Status
+
+### Current Progress
+
+| Module | Status | Notes |
+|------|------|------|
+| **Metadata Parsing** | ✅ Complete | Full PE/COFF and CLI metadata support |
+| **Type System** | ✅ Complete | Classes, interfaces, generics, arrays, value types, etc. |
+| **IR Interpreter** | ✅ Complete | Optimized execution for hot functions |
+| **Exception Handling** | ✅ Complete | try/catch/finally, nested exceptions, etc. |
+| **Reflection** | ✅ Complete | Type, MethodInfo, FieldInfo, etc. |
+| **Delegates** | ✅ Complete | Unicast/multicast, generic delegates |
+| **Internal Calls** | ✅ Complete | Core version icalls only |
+| **P/Invoke** | ✅ Complete | Manual registration supported; automation depends on AOT compiler |
+| **Garbage Collection** | 📋 In development | Basic framework ready |
+| **AOT Compiler** | 📋 In development | IL → C++ transpilation |
+| **Multi-threading** | 📋 Planned | Threads, synchronization primitives, etc. |
+
+### Stability
+
+The current version is **very stable**:
+
+- Fully compatible with Unity 2019.4.x – 6000.3.x LTS IL2CPP BCL; passes all (thousands of) test cases
+- 99.95% compatible with Mono 4.8 BCL; only one test case fails
 
 ## Editions
 
-LeanCLR provides two editions to meet different scenario requirements:
+LeanCLR provides **Core** and **Standard** editions for different scenarios.
 
-| Feature | Universal Edition | Standard Edition |
-|---------|-------------------|------------------|
-| **Threading Model** | Single-threaded | Multi-threaded |
-| **Execution Mode** | AOT + Interpreter | AOT + Interpreter |
-| **P/Invoke** | AOT functions only | AOT functions only |
-| **Garbage Collection** | Precise cooperative GC | Conservative GC |
-| **Platform icalls** | Not implemented | Fully implemented |
-| **Platform Dependencies** | None | Requires platform adaptation |
-| **Porting Cost** | Zero cost | Requires platform interface handling |
-| **Use Cases** | WebAssembly, embedded, high cross-platform consistency | Desktop/mobile, full system functionality needed |
+### Core Edition
 
-### Universal Edition
+Status: **Complete**
 
-**Design Goal**: Ultimate cross-platform capability and portability
+**Design Goal**: Minimize binary size and memory usage; maximize cross-platform capability
 
-- **Single-Threaded Execution** — Simplified memory model, no thread synchronization concerns
-- **AOT + Interpreter Hybrid Execution** — Flexible execution strategy
-- **Precise Cooperative GC** — Precise tracking of managed references, efficient memory reclamation
-- **Zero Platform Dependencies** — No reliance on any OS or platform-specific functions
-- **Standard C++17 Implementation** — Can be compiled and run directly on any platform supporting C++17
-- **Platform icalls Not Implemented** — Features like `System.IO.File` require custom bridging or pure managed implementations
+- **Single-threaded execution** — Simplified memory model, no thread synchronization
+- **AOT + Interpreter hybrid** — Flexible execution
+- **Precise, cooperative GC** — Accurate managed reference tracking, efficient memory reclamation
+- **Zero platform dependencies** — No OS/platform-specific functions
+- **Standard C++17** — Compiles and runs on any C++17 platform
+- **No platform icalls** — e.g., `System.IO.File` must be bridged or implemented in managed code
 
-**Best Use Cases**: WebAssembly, embedded systems, IoT devices, projects requiring high cross-platform consistency
+**Best for**: Mobile apps/games, WebAssembly, embedded/IoT, projects needing maximum cross-platform consistency
+
+### Standard Edition
+
+Status: **Planned**
+
+**Design Goal**: Feature-complete, production-grade runtime
+
+- **Multi-threading support** — Full threading model and synchronization primitives
+- **AOT + Interpreter hybrid** — Flexible execution
+- **Conservative GC** — Better compatibility for complex apps
+- **Full platform icalls** — Implements `System.IO`, `System.Net`, etc.
+- **Standard C++17** — Some platform-specific interfaces must be adapted when porting
+
+**Best for**: Desktop apps, large mobile apps/games, projects needing full .NET base library
+
+## Demo
+
+The [leanclr-demo](https://github.com/focus-creative-games/leanclr-demo) repository provides two platform demos for quick evaluation:
+
+| Demo | Description |
+|------|------|
+| **win64** | Windows x64 demo; run `run.bat` |
+| **h5** | WebAssembly browser demo; open `index.html` via HTTP server |
+
+## Contact
+
+- Email: leanclr#code-philosophy.com
+- Discord: <https://discord.gg/esAYcM6RDQ>
+- QQ Group: 1047250380
 
 ### Standard Edition
 
