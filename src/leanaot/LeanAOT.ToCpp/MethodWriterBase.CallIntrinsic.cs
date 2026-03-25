@@ -19,7 +19,7 @@ namespace LeanAOT.ToCpp
                 TypeSig declaringTypeSig = methodDetail.Method.DeclaringType.ToTypeSig();
                 if (declaringTypeSig.ElementType != ElementType.Array)
                 {
-                    throw new Exception("impossible: methodDef is null but the declaring type is not an array.");
+                    throw new Exception($"impossible: methodDef is null but the declaring type is not an array. method:{methodDetail.Method}");
                 }
                 switch (methodDetail.Method.Name)
                 {
