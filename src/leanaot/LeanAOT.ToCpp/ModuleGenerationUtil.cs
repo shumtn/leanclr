@@ -32,7 +32,7 @@ namespace LeanAOT.ToCpp
 
         public static string GetStandardizedModuleNameWithoutExt(ModuleDef mod)
         {
-            return mod.Assembly.Name.Replace('.', '_');
+            return mod.Assembly.Name.Replace('.', '_').Replace('-', '_');
         }
 
         public static string GetModuleNameNoExt(ModuleDef mod)
