@@ -905,7 +905,7 @@ namespace LeanAOT.ToCpp
         private void EmitLoadInt64(Instruction inst, long value)
         {
             var newVar = PushStack(EvalDataType.Int64);
-            _bodyWriter.AddLine($"{GetTypeName(newVar)} {GetEvalVariableName(newVar)} = {value};");
+            _bodyWriter.AddLine($"{GetTypeName(newVar)} {GetEvalVariableName(newVar)} = {value}L;");
         }
 
         private string FormatFloatLiteral(float value)
