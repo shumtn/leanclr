@@ -49,6 +49,7 @@ LeanCLR is especially suitable for:
 ### Efficient, Modern Execution Model
 
 - **AOT + Interpreter hybrid** — Balances startup speed and runtime efficiency, with excellent cross-platform portability
+- **Code AOT** — Supports transpiling IL code to C++ (IL → C++)
 - **Dual-interpreter architecture** — IL interpreter for cold paths, IR interpreter for hot functions, balancing compile overhead and performance
 - **Function-level AOT** — Each managed function can be individually AOT-compiled; only performance-critical functions need AOT, minimizing binary size while maintaining performance
 - **Exception fallback** — Exception handling is unified in the interpreter, greatly reducing AOT code size
@@ -67,6 +68,7 @@ See the [docs](./docs) directory for detailed documentation:
 - [Build Documentation](./docs/build/README.md)
 - [Building the Runtime](./docs/build/build_runtime.md)
 - [Embedding LeanCLR](./docs/build/embed_leanclr.md)
+- [AOT Documentation](./docs/aot.md)
 - [Test Framework](./src/tests/README.md)
 
 ## Integrated Engines & Platforms
@@ -95,7 +97,7 @@ LeanCLR is fully cross-platform. For developer convenience, we provide integrati
 | **Internal Calls** | ✅ Complete | Core version icalls only |
 | **P/Invoke** | ✅ Complete | Manual registration supported; automation depends on AOT compiler |
 | **Garbage Collection** | 📋 In development | Basic framework ready |
-| **AOT Compiler** | 📋 In development | IL → C++ transpilation |
+| **AOT Compiler** | ✅ Complete | IL → C++ transpilation is supported |
 | **Multi-threading** | 📋 Planned | Threads, synchronization primitives, etc. |
 
 ### Stability
@@ -180,7 +182,7 @@ The [leanclr-demo](https://github.com/focus-creative-games/leanclr-demo) reposit
 | **Delegates** | ✅ Complete | Unicast/multicast delegates, generic delegates |
 | **Internal Calls** | 🔶 In Progress | Core icalls implemented, platform icalls being added |
 | **Garbage Collection** | 🔶 In Development | Basic framework ready |
-| **AOT Compiler** | 📋 Planned | IL → C++ transpilation |
+| **AOT Compiler** | ✅ Complete | IL → C++ transpilation is supported |
 | **P/Invoke** | � Partial | Manual registration supported, automation depends on AOT compiler |
 | **Multi-Threading** | 📋 Planned | Threads, synchronization primitives, etc. |
 
@@ -202,7 +204,7 @@ The current version has achieved a **very high** level of stability.
 **Near-Term Goals:**
 
 - Complete garbage collector implementation
-- Implement AOT compiler (IL → C++)
+- Improve and optimize the AOT compiler (IL → C++)
 - Complete P/Invoke automation support (depends on AOT compiler)
 - Support CoreCLR extension features
 - Provide more complete examples and documentation
@@ -241,6 +243,7 @@ Detailed documentation is available in the [docs](./docs) directory:
 - [Build Documentation](./docs/build/README.md) - Build-related documentation overview
 - [Building the Runtime](./docs/build/build_runtime.md) - How to build the LeanCLR runtime
 - [Embedding LeanCLR](./docs/build/embed_leanclr.md) - How to integrate LeanCLR into your project
+- [AOT Documentation](./docs/aot.md) - AOT capabilities and usage guide
 - [Test Framework](./src/tests/README.md) - Unit test framework and how to write test cases
 
 ## Quick Build

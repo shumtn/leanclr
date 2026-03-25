@@ -19,6 +19,33 @@ Generated files usually include patterns such as:
 - `*.module_registration.h`
 - `modules_registration.cpp`
 
+### Editions and Current Capability Scope
+
+`LeanAOT` provides two editions targeting different production needs:
+
+- **Community Edition**
+- **Commercial Edition**
+
+For current AOT feature coverage:
+
+- **Community Edition constraints**
+	- Does **not** support AOT for generic methods
+	- Does **not** support AOT for methods that contain exception-handling regions (`try/catch/finally`)
+	- Does **not** support AOT for `extern` methods
+- **Commercial Edition capability**
+	- Supports AOT for generic methods
+	- Supports AOT for methods with exception handling
+	- Supports AOT for `extern` methods
+
+In addition to broader language/runtime coverage, the **Commercial Edition** includes more aggressive code generation and optimization passes, including:
+
+- intrinsic function optimization
+- generic sharing optimization
+
+These optimizations typically improve runtime performance and reduce generated/native code size in medium to large codebases.
+
+The **Commercial Edition** also supports HybridCLR's **DHE (Differential Hybrid Execution)** model, enabling differential hybrid execution workflows in projects that depend on DHE-based deployment/update pipelines.
+
 ### How to Build LeanAOT
 
 From repository root:
