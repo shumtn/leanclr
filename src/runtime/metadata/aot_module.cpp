@@ -2,14 +2,16 @@
 #include "utils/hashmap.h"
 #include "utils/string_util.h"
 
-namespace leanclr::metadata
+namespace leanclr
+{
+namespace metadata
 {
 
 utils::HashMap<const char*, const RtAotModuleData*, utils::CStrHasher, utils::CStrCompare> s_aotModuleMap;
 
 void AotModule::register_aot_modules(const RtAotModulesData* initData)
 {
-    for (int i = 0; i < initData->module_count; i++)
+    for (uint32_t i = 0; i < initData->module_count; i++)
     {
         const RtAotModuleData* moduleData = initData->modules[i];
         s_aotModuleMap.insert({moduleData->module_name, moduleData});
@@ -67,4 +69,5 @@ const RtAotMethodDefData* AotModule::find_aot_method_def_impl(const RtModuleDef*
     return nullptr;
 }
 
-} // namespace leanclr::metadata
+} // namespace metadata
+} // namespace leanclr

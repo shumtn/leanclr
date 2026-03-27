@@ -1,8 +1,14 @@
 #include "leanclr_common.h"
 #include "vm/object.h"
 #include "metadata/module_def.h"
+#include "utils/string_builder.h"
+#include "vm/rt_string.h"
+#include "vm/pinvoke.h"
+#include "vm/rt_exception.h"
 
-namespace leanclr::codegen
+namespace leanclr
+{
+namespace codegen
 {
 
 vm::RtString* resolve_string_literal(metadata::RtModuleDef* mod, uint32_t token)
@@ -58,7 +64,7 @@ void* resolve_metadata_token(metadata::RtModuleDef* mod, uint32_t token, const m
             return nullptr;
         }
         const metadata::RtMethodInfo* methodInfo = ret.unwrap();
-        if (vm::Class::initialize_all(methodInfo->parent).is_err())
+        if (vm::Class::initialize_all(const_cast<metadata::RtClass*>(methodInfo->parent)).is_err())
         {
             assert(false && "Failed to initialize method's declaring class in resolve_metadata_token");
             return nullptr;
@@ -74,7 +80,7 @@ void* resolve_metadata_token(metadata::RtModuleDef* mod, uint32_t token, const m
             return nullptr;
         }
         const metadata::RtFieldInfo* fieldInfo = ret.unwrap();
-        if (vm::Class::initialize_all(fieldInfo->parent).is_err())
+        if (vm::Class::initialize_all(const_cast<metadata::RtClass*>(fieldInfo->parent)).is_err())
         {
             assert(false && "Failed to initialize field's declaring class in resolve_metadata_token");
             return nullptr;
@@ -101,7 +107,7 @@ void* resolve_metadata_token(metadata::RtModuleDef* mod, uint32_t token, const m
                 return nullptr;
             }
             auto klass = ret2.unwrap();
-            if (vm::Class::initialize_all(klass).is_err())
+            if (vm::Class::initialize_all(const_cast<metadata::RtClass*>(klass)).is_err())
             {
                 assert(false && "Failed to initialize class in resolve_metadata_token (MemberRef)");
                 return nullptr;
@@ -111,7 +117,7 @@ void* resolve_metadata_token(metadata::RtModuleDef* mod, uint32_t token, const m
         case metadata::RtRuntimeHandleType::Method:
         {
             const metadata::RtMethodInfo* methodInfo = handle.method;
-            if (vm::Class::initialize_all(methodInfo->parent).is_err())
+            if (vm::Class::initialize_all(const_cast<metadata::RtClass*>(methodInfo->parent)).is_err())
             {
                 assert(false && "Failed to initialize method's declaring class in resolve_metadata_token (MemberRef)");
                 return nullptr;
@@ -121,7 +127,7 @@ void* resolve_metadata_token(metadata::RtModuleDef* mod, uint32_t token, const m
         case metadata::RtRuntimeHandleType::Field:
         {
             const metadata::RtFieldInfo* fieldInfo = handle.field;
-            if (vm::Class::initialize_all(fieldInfo->parent).is_err())
+            if (vm::Class::initialize_all(const_cast<metadata::RtClass*>(fieldInfo->parent)).is_err())
             {
                 assert(false && "Failed to initialize field's declaring class in resolve_metadata_token (MemberRef)");
                 return nullptr;
@@ -142,4 +148,32 @@ void* resolve_metadata_token(metadata::RtModuleDef* mod, uint32_t token, const m
     }
     }
 }
-} // namespace leanclr::codegen
+
+const char* marshal_utf16_string_to_utf8(vm::RtString* str)
+{
+    if (str == nullptr)
+    {
+        return nullptr;
+    }
+    utils::StringBuilder sb;
+    utils::StringUtil::utf16_to_utf8(vm::String::get_chars_ptr(str), static_cast<size_t>(vm::String::get_length(str)), sb);
+    // FIXME: should we use std::malloc instead of alloc::GeneralAllocation::malloc?
+    return sb.dup_to_zero_end_cstr();
+}
+
+RtErr raise_internal_call_entry_not_found_error(const char* name)
+{
+    char err_msg[1024];
+    snprintf(err_msg, sizeof(err_msg), "Internal call entry not found: %s", name);
+    RET_ERR_WITH_MSG(RtErr::EntryPointNotFound, err_msg);
+}
+
+RtErr raise_pinvoke_entry_not_found_error(const char* dll_name_no_ext, const char* function_name)
+{
+    char err_msg[1024];
+    snprintf(err_msg, sizeof(err_msg), "P/Invoke entry not found: dll=%s, function=%s", dll_name_no_ext, function_name);
+    RET_ERR_WITH_MSG(RtErr::EntryPointNotFound, err_msg);
+}
+
+} // namespace codegen
+} // namespace leanclr

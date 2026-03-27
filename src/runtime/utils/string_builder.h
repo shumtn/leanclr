@@ -2,11 +2,13 @@
 
 #include <cstring>
 
-#include "rt_base.h"
+#include "core/rt_base.h"
 #include "alloc/general_allocation.h"
 #include "string_util.h"
 
-namespace leanclr::utils
+namespace leanclr
+{
+namespace utils
 {
 
 class StringBuilder
@@ -78,7 +80,7 @@ class StringBuilder
     StringBuilder& append_char(uint8_t c)
     {
         reserve(1);
-        _buf[_length] = c;
+        _buf[_length] = static_cast<char>(c);
         _length++;
         return *this;
     }
@@ -88,7 +90,7 @@ class StringBuilder
         reserve(count);
         for (size_t i = 0; i < count; i++)
         {
-            _buf[_length + i] = static_cast<uint8_t>(c);
+            _buf[_length + i] = c;
         }
         _length += count;
         return *this;
@@ -152,7 +154,7 @@ class StringBuilder
             do
             {
                 write_pos--;
-                _buf[write_pos] = static_cast<uint8_t>('0' + (tmp_value % 10));
+                _buf[write_pos] = static_cast<char>('0' + static_cast<int>(tmp_value % 10));
                 tmp_value /= 10;
             } while (tmp_value > 0);
             _length += digit_count;
@@ -272,4 +274,5 @@ class StringBuilder
     }
 };
 
-} // namespace leanclr::utils
+} // namespace utils
+} // namespace leanclr

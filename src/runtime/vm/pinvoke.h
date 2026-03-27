@@ -1,6 +1,6 @@
 #pragma once
 
-#include <optional>
+#include "core/stl_compat.h"
 
 #include "rt_managed_types.h"
 #include "utils/hashmap.h"
@@ -10,10 +10,12 @@
 #include "rt_exception.h"
 #include "interp/eval_stack_op.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
-using PInvokeFunction = metadata::RtManagedMethodPointer;
+using PInvokeFunction = metadata::RtNativeMethodPointer;
 using PInvokeInvoker = metadata::RtInvokeMethodPointer;
 
 // Registry struct for internal call functions
@@ -39,7 +41,8 @@ class PInvokes
     // Register/get internal call functions
     static void register_pinvoke(const char* name, PInvokeFunction func, PInvokeInvoker invoker);
     static const PInvokeRegistry* get_pinvoke(const char* name);
+    static PInvokeFunction get_pinvoke_function(const char* dll_name_no_ext, const char* function_name);
     static RtResult<const PInvokeRegistry*> get_pinvoke_by_method(const metadata::RtMethodInfo* method);
 };
-
-}; // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

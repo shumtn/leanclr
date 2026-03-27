@@ -2,7 +2,9 @@
 
 #include "rt_managed_types.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 class String
@@ -10,7 +12,7 @@ class String
   public:
     static RtResultVoid initialize();
     static RtString* get_empty_string();
-    static RtString* create_string_from_utf16chars(const uint16_t* str, int32_t length);
+    static RtString* create_string_from_utf16chars(const Utf16Char* str, int32_t length);
     static RtString* create_string_from_utf8chars(const char* str, int32_t length);
     static RtString* create_string_from_utf8cstr(const char* str)
     {
@@ -19,21 +21,7 @@ class String
     static const metadata::RtMethodInfo* get_redirected_ctor_method();
     static constexpr int32_t get_offset_to_string_data()
     {
-#ifdef _MSC_VER
-        // MSVC: suppress C4840 (unsupported offsetof usage)
-#pragma warning(push)
-#pragma warning(disable : 4840)
-#else
-        // GCC/Clang: suppress -Winvalid-offsetof
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
-#endif
-        return static_cast<int32_t>(offsetof(RtString, first_char));
-#ifdef _MSC_VER
-#pragma warning(pop)
-#else
-#pragma GCC diagnostic pop
-#endif
+        return RT_STRING_FIRST_CHAR_OFFSET;
     }
 
     static const Utf16Char* get_chars_ptr(RtString* str)
@@ -63,8 +51,10 @@ class String
     static int32_t get_hash_code(RtString* str);
 
     // Runtime helpers mirrored from Rust vm::string
+    static int32_t get_string_allocation_size(int32_t length);
     static RtString* fast_allocate_string(int32_t length); // Declaration retained
     static RtString* intern_string(RtString* s);
     static bool is_interned_string(RtString* s);
 };
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

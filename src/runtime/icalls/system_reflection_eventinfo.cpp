@@ -3,12 +3,15 @@
 #include "vm/class.h"
 #include "vm/reflection.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResult<vm::RtReflectionEventInfo*> SystemReflectionEventInfo::internal_from_handle_type(metadata::RtEventInfo* event, const metadata::RtTypeSig* type_sig)
+RtResult<vm::RtReflectionEventInfo*> SystemReflectionEventInfo::internal_from_handle_type(metadata::RtEventInfo* event,
+                                                                                          const metadata::RtTypeSig* type_sig) noexcept
 {
-    metadata::RtClass* klass;
+    const metadata::RtClass* klass;
     if (!type_sig)
     {
         klass = event->parent;
@@ -27,8 +30,8 @@ RtResult<vm::RtReflectionEventInfo*> SystemReflectionEventInfo::internal_from_ha
 }
 
 /// @icall: System.Reflection.EventInfo::internal_from_handle_type
-static RtResultVoid internal_from_handle_type_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                      const interp::RtStackObject* params, interp::RtStackObject* ret)
+static RtResultVoid internal_from_handle_type_invoker_eventinfo(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
+                                                                const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -39,13 +42,14 @@ static RtResultVoid internal_from_handle_type_invoker(metadata::RtManagedMethodP
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemReflectionEventInfo::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemReflectionEventInfo::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Reflection.EventInfo::internal_from_handle_type", (vm::InternalCallFunction)&SystemReflectionEventInfo::internal_from_handle_type,
-         internal_from_handle_type_invoker},
+         internal_from_handle_type_invoker_eventinfo},
     };
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

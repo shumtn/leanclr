@@ -4,7 +4,9 @@
 #include "alloc/metadata_allocation.h"
 #include <cstring>
 
-namespace leanclr::metadata
+namespace leanclr
+{
+namespace metadata
 {
 using namespace leanclr::core;
 using namespace leanclr::alloc;
@@ -217,7 +219,20 @@ static RtResult<const RtTypeSig*> inflate_typesig_impl(const RtTypeSig* typesig,
 
     case RtElementType::FnPtr:
     {
-        RET_ERR(RtErr::NotImplemented);
+        const RtMethodSig* old_method_sig = typesig->data.method_sig;
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtMethodSig*, new_method_sig, GenericMetadata::inflate_method_sig(old_method_sig, genericContext));
+        if (old_method_sig == new_method_sig)
+        {
+            result = typesig;
+        }
+        else
+        {
+            auto new_ts = alloc::MetadataAllocation::malloc_any_zeroed<RtTypeSig>();
+            *new_ts = *typesig;
+            new_ts->data.method_sig = new_method_sig;
+            result = new_ts;
+        }
+        break;
     }
 
     default:
@@ -244,14 +259,43 @@ RtResultVoid GenericMetadata::inflate_typesigs(utils::Vector<const RtTypeSig*> t
     RET_VOID_OK();
 }
 
-RtResult<RtClass*> GenericMetadata::inflate_class(RtClass* klass, const RtGenericContext* genericContext)
+RtResult<RtClass*> GenericMetadata::inflate_class(const RtClass* klass, const RtGenericContext* genericContext)
 {
     if (!genericContext)
     {
-        RET_OK(klass);
+        RET_OK(const_cast<RtClass*>(klass));
     }
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtTypeSig*, inflatedTypeSig, inflate_typesig(klass->by_val, genericContext));
     return vm::Class::get_class_from_typesig(inflatedTypeSig);
 }
 
-} // namespace leanclr::metadata
+RtResult<const RtMethodSig*> GenericMetadata::inflate_method_sig(const RtMethodSig* methodSig, const RtGenericContext* genericContext)
+{
+    bool any_changed = false;
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtTypeSig*, inflated_return_type, inflate_typesig(methodSig->return_type, genericContext));
+    if (inflated_return_type != methodSig->return_type)
+    {
+        any_changed = true;
+    }
+    utils::Vector<const RtTypeSig*> inflated_params(methodSig->params.size());
+    for (size_t i = 0; i < methodSig->params.size(); ++i)
+    {
+        const RtTypeSig* old_param = methodSig->params[i];
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtTypeSig*, inflated_param, inflate_typesig(old_param, genericContext));
+        if (inflated_param != old_param)
+        {
+            any_changed = true;
+        }
+        inflated_params[i] = inflated_param;
+    }
+    if (!any_changed)
+    {
+        RET_OK(methodSig);
+    }
+    RtMethodSig* new_method_sig = new (alloc::MetadataAllocation::malloc_any_zeroed<RtMethodSig>())
+        RtMethodSig{methodSig->flags, methodSig->generic_param_count, inflated_return_type, std::move(inflated_params)};
+    RET_OK(new_method_sig);
+}
+
+} // namespace metadata
+} // namespace leanclr

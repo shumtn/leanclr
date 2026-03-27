@@ -2,16 +2,19 @@
 
 #include "icall_base.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 class SystemReflectionMethodBase
 {
   public:
-    static utils::Span<vm::InternalCallEntry> get_internal_call_entries();
+    static utils::Span<vm::InternalCallEntry> get_internal_call_entries() noexcept;
 
     // Get the currently executing method
-    static RtResult<vm::RtReflectionMethod*> get_current_method();
+    static RtResult<vm::RtReflectionMethod*> get_current_method() noexcept;
 };
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

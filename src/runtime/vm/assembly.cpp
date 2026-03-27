@@ -13,7 +13,9 @@
 #include "reflection.h"
 #include "log/internal_logger.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 RtResult<metadata::RtAssembly*> Assembly::load_corlib()
@@ -121,6 +123,13 @@ RtResult<metadata::RtAssembly*> Assembly::load_from_data(const utils::Span<byte>
         {
             aotModuleData->initializer(mod);
         }
+        utils::Vector<metadata::RtAssembly*> ref_assemblies;
+        RET_ERR_ON_FAIL(mod->get_reference_assemblies(ref_assemblies));
+        // corlib should call deferred_initializer after Class::initialize
+        if (!mod->is_corlib() && aotModuleData->deferred_initializer)
+        {
+            aotModuleData->deferred_initializer(mod);
+        }
     }
 
     // don't free mem pool if succ
@@ -135,10 +144,10 @@ RtResult<metadata::RtAssembly*> Assembly::load_from_data(RtAppDomain* app_domain
     {
         RET_ERR(RtErr::ArgumentNull);
     }
-    utils::Span<byte> dll_span(Array::get_array_data_start_as<uint8_t>(dll_data), Array::get_array_length(dll_data));
+    utils::Span<byte> dll_span(Array::get_array_data_start_as<uint8_t>(dll_data), static_cast<size_t>(Array::get_array_length(dll_data)));
     if (symbol_data)
     {
-        utils::Span<byte> symbol_span(Array::get_array_data_start_as<uint8_t>(symbol_data), Array::get_array_length(symbol_data));
+        utils::Span<byte> symbol_span(Array::get_array_data_start_as<uint8_t>(symbol_data), static_cast<size_t>(Array::get_array_length(symbol_data)));
         return load_from_data(dll_span, &symbol_span);
     }
     else
@@ -163,4 +172,5 @@ RtResult<RtArray*> Assembly::get_types(metadata::RtAssembly* ass, bool exported_
     RET_OK(types_arr);
 }
 
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

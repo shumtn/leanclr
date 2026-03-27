@@ -1,6 +1,9 @@
 #include "metadata_allocation.h"
 
-namespace leanclr::alloc
+namespace leanclr
 {
-MemPool MetadataAllocation::s_memPool;
-} // namespace leanclr::alloc
+namespace alloc
+{
+MemPool* MetadataAllocation::s_memPool = nullptr;
+} // namespace alloc
+} // namespace leanclr

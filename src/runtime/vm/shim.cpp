@@ -14,7 +14,9 @@
 #include "metadata/module_def.h"
 #include "metadata/aot_module.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 // Static function pointers for invokers
@@ -23,7 +25,7 @@ namespace
 
 // Interpreter invoker
 RtResultVoid fn_interpreter_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
-                                    interp::RtStackObject* ret)
+                                    interp::RtStackObject* ret) noexcept
 {
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const interp::RtStackObject*, result, interp::Interpreter::execute(method, params));
     if (method->ret_stack_object_size > 0)
@@ -35,7 +37,7 @@ RtResultVoid fn_interpreter_invoker(metadata::RtManagedMethodPointer method_poin
 
 // Interpreter virtual adjust thunk invoker
 RtResultVoid fn_interpreter_virtual_adjust_thunk_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                                         const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                         const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     const_cast<interp::RtStackObject*>(params)[0].obj = params[0].obj + 1;
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const interp::RtStackObject*, result, interp::Interpreter::execute(method, params));
@@ -48,80 +50,80 @@ RtResultVoid fn_interpreter_virtual_adjust_thunk_invoker(metadata::RtManagedMeth
 
 // Not implemented internal call invoker
 RtResultVoid fn_not_implemented_internal_call_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                                      const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                      const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
-#ifndef NDEBUG
+#if LEANCLR_DEBUG
     utils::StringBuilder sb;
     RET_ERR_ON_FAIL(metadata::MetadataName::append_method_full_name_without_params(sb, method));
     printf("Internal call invoker not implemented for method: %s token:0x%0x\n", sb.as_cstr(), method->token);
 #endif
-    RET_ERR(core::RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 // Not implemented intrinsic invoker
 RtResultVoid fn_not_implemented_intrinsic_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                                  const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                  const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
-#ifndef NDEBUG
+#if LEANCLR_DEBUG
     utils::StringBuilder sb;
     RET_ERR_ON_FAIL(metadata::MetadataName::append_method_full_name_without_params(sb, method));
     printf("Intrinsic invoker not implemented for method: %s token:0x%0x\n", sb.as_cstr(), method->token);
 #endif
-    RET_ERR(core::RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 // PInvoke invoker (not implemented)
 RtResultVoid fn_pinvoke_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
-                                interp::RtStackObject* ret)
+                                interp::RtStackObject* ret) noexcept
 {
-#ifndef NDEBUG
+#if LEANCLR_DEBUG
     utils::StringBuilder sb;
     RET_ERR_ON_FAIL(metadata::MetadataName::append_method_full_name_without_params(sb, method));
     printf("P/Invoke invoker not implemented for method: %s token:0x%0x\n", sb.as_cstr(), method->token);
 #endif
-    RET_ERR(core::RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 // Not implemented PInvoke invoker
 RtResultVoid fn_not_implemented_pinvoke_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                                const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
-#ifndef NDEBUG
+#if LEANCLR_DEBUG
     utils::StringBuilder sb;
     RET_ERR_ON_FAIL(metadata::MetadataName::append_method_full_name_without_params(sb, method));
     printf("P/Invoke invoker not implemented for method: %s token:0x%0x\n", sb.as_cstr(), method->token);
 #endif
-    RET_ERR(core::RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 // Not implemented runtime impl invoker
 RtResultVoid fn_not_implemented_runtime_impl_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                                     const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                     const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
-#ifndef NDEBUG
+#if LEANCLR_DEBUG
     utils::StringBuilder sb;
     RET_ERR_ON_FAIL(metadata::MetadataName::append_method_full_name_without_params(sb, method));
     printf("Runtime impl invoker not implemented for method: %s token:0x%0x\n", sb.as_cstr(), method->token);
 #endif
     // Placeholder implementation
-    RET_ERR(core::RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 // Not implemented generic invoker
 RtResultVoid fn_not_implemented_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                        const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                        const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
-#ifndef NDEBUG
+#if LEANCLR_DEBUG
     utils::StringBuilder sb;
     RET_ERR_ON_FAIL(metadata::MetadataName::append_method_full_name_without_params(sb, method));
     printf("Not implemented invoker not implemented for method: %s token:0x%0x\n", sb.as_cstr(), method->token);
 #endif
     // Placeholder implementation
-    RET_ERR(core::RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 // Method pointer placeholder
-void fn_not_implemented_method_pointer()
+void fn_not_implemented_method_pointer() noexcept
 {
     // Placeholder - would panic in debug builds
 }
@@ -131,7 +133,7 @@ void fn_not_implemented_method_pointer()
 // Helper function to try setting up array or szarray invokers
 static metadata::RtInvokeMethodPointer try_setup_array_or_szarray_invoke(const metadata::RtMethodInfo* method)
 {
-    metadata::RtClass* klass = method->parent;
+    const metadata::RtClass* klass = method->parent;
     const char* method_name = method->name;
     size_t param_count = method->parameter_count;
 
@@ -204,7 +206,7 @@ static metadata::RtInvokeMethodPointer try_setup_array_or_szarray_invoke(const m
 // Get invoker for a method
 RtResult<InvokeTypeAndMethod> Shim::get_invoker(const metadata::RtMethodInfo* method)
 {
-    metadata::RtClass* klass = method->parent;
+    const metadata::RtClass* klass = method->parent;
 
     // Check for array/szarray methods
     if (Class::is_array_or_szarray(klass))
@@ -223,21 +225,25 @@ RtResult<InvokeTypeAndMethod> Shim::get_invoker(const metadata::RtMethodInfo* me
     case metadata::RtMethodImplAttribute::IlOrManaged:
     {
         // Try internal call first
+
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(const InternalCallRegistry*, icall_entry, InternalCalls::get_internal_call_by_method(method));
+        if (icall_entry)
         {
-            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(const InternalCallRegistry*, entry, InternalCalls::get_internal_call_by_method(method));
-            if (entry)
-            {
-                RET_OK(InvokeTypeAndMethod(RtInvokerType::InternalCall, entry->invoker));
-            }
+            RET_OK(InvokeTypeAndMethod(RtInvokerType::InternalCall, icall_entry->invoker));
         }
 
         // Try intrinsic
+
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(const IntrinsicRegistry*, intrinsic_entry, Intrinsics::get_intrinsic_by_method(method));
+        if (intrinsic_entry)
         {
-            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(const IntrinsicRegistry*, entry, Intrinsics::get_intrinsic_by_method(method));
-            if (entry)
-            {
-                RET_OK(InvokeTypeAndMethod(RtInvokerType::Intrinsic, entry->invoker));
-            }
+            RET_OK(InvokeTypeAndMethod(RtInvokerType::Intrinsic, intrinsic_entry->invoker));
+        }
+
+        std::optional<metadata::RtAotMethodImplData> aot_data = metadata::AotModule::find_aot_method_impl(method);
+        if (aot_data.has_value())
+        {
+            RET_OK(InvokeTypeAndMethod(RtInvokerType::Aot, aot_data->invoke_method_ptr, aot_data->virtual_invoke_method_ptr));
         }
 
         if (Method::is_internal_call(method))
@@ -245,11 +251,11 @@ RtResult<InvokeTypeAndMethod> Shim::get_invoker(const metadata::RtMethodInfo* me
             RET_OK(InvokeTypeAndMethod(RtInvokerType::InternalCall, fn_not_implemented_internal_call_invoker));
         }
 
-        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(bool, is_intrinsic_method, Method::is_intrinsic(method));
-        if (is_intrinsic_method)
-        {
-            RET_OK(InvokeTypeAndMethod(RtInvokerType::Intrinsic, fn_not_implemented_intrinsic_invoker));
-        }
+        // DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(bool, is_intrinsic_method, Method::is_intrinsic(method));
+        // if (is_intrinsic_method)
+        // {
+        //     RET_OK(InvokeTypeAndMethod(RtInvokerType::Intrinsic, fn_not_implemented_intrinsic_invoker));
+        // }
 
         if (Method::is_pinvoke(method))
         {
@@ -262,12 +268,6 @@ RtResult<InvokeTypeAndMethod> Shim::get_invoker(const metadata::RtMethodInfo* me
             {
                 RET_OK(InvokeTypeAndMethod(RtInvokerType::PInvoke, fn_not_implemented_pinvoke_invoker));
             }
-        }
-
-        std::optional<metadata::RtAotMethodImplData> aot_data = metadata::AotModule::find_aot_method_impl(method);
-        if (aot_data.has_value())
-        {
-            RET_OK(InvokeTypeAndMethod(RtInvokerType::Aot, aot_data->invoke_method_ptr, aot_data->virtual_invoke_method_ptr));
         }
 
         auto virtual_invoker =
@@ -336,4 +336,5 @@ metadata::RtManagedMethodPointer Shim::get_method_pointer(const metadata::RtMeth
     return reinterpret_cast<metadata::RtManagedMethodPointer>(fn_not_implemented_method_pointer);
 }
 
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

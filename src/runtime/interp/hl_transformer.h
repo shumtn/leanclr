@@ -6,7 +6,11 @@
 #include "utils/not_free_list.h"
 #include "utils/hashmap.h"
 
-namespace leanclr::interp::hl
+namespace leanclr
+{
+namespace interp
+{
+namespace hl
 {
 
 struct GeneralInst;
@@ -391,11 +395,11 @@ struct GeneralInst
         arg3.value = size;
     }
 
-    void set_method_sig_and_params(const metadata::RtMethodSig* method, size_t frame_base_idx, size_t method_idx, const Variable** params)
+    void set_method_sig_and_params(const metadata::RtMethodSig* method, size_t frame_base_idx, const Variable* method_idx, const Variable** params)
     {
         arg1_or_src.vars = params;
         arg2.value = frame_base_idx;
-        arg3.value = method_idx;
+        arg3.var = method_idx;
         extra_data.method_sig = method;
     }
 
@@ -408,6 +412,11 @@ struct GeneralInst
     void set_method_sig(const metadata::RtMethodSig* method_sig)
     {
         extra_data.method_sig = method_sig;
+    }
+
+    const metadata::RtMethodSig* get_method_sig() const
+    {
+        return extra_data.method_sig;
     }
 
     void set_user_string(const vm::RtString* user_string)
@@ -488,7 +497,7 @@ class Transformer
     Variable* push_i4_to_eval_stack();
     Variable* push_ref_or_ptr_to_eval_stack();
     RtResult<Variable*> push_typesig_to_eval_stack(const metadata::RtTypeSig* type_sig);
-    RtResult<Variable*> push_class_to_eval_stack(metadata::RtClass* klass);
+    RtResult<Variable*> push_class_to_eval_stack(const metadata::RtClass* klass);
     RtResult<const Variable*> get_top_var() const;
     RtResult<const Variable*> pop_eval_stack();
 
@@ -620,4 +629,6 @@ class Transformer
 
     int32_t _cur_il_offset{-1};
 };
-} // namespace leanclr::interp::hl
+} // namespace hl
+} // namespace interp
+} // namespace leanclr

@@ -1,21 +1,23 @@
 #include "system_runtime_runtimeimports.h"
 #include <cstring>
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 using namespace interp;
 using namespace metadata;
 
 // @icall: System.Runtime.RuntimeImports::ZeroMemory
-RtResultVoid SystemRuntimeRuntimeImports::zero_memory(uint8_t* ptr, uintptr_t size)
+RtResultVoid SystemRuntimeRuntimeImports::zero_memory(uint8_t* ptr, uintptr_t size) noexcept
 {
     std::memset(ptr, 0, size);
     RET_VOID_OK();
 }
 
 static RtResultVoid zero_memory_invoker(RtManagedMethodPointer method_pointer, const RtMethodInfo* method, const interp::RtStackObject* params,
-                                        interp::RtStackObject* ret)
+                                        interp::RtStackObject* ret) noexcept
 {
     uint8_t* ptr = EvalStackOp::get_param<uint8_t*>(params, 0);
     uintptr_t size = EvalStackOp::get_param<uintptr_t>(params, 1);
@@ -23,14 +25,14 @@ static RtResultVoid zero_memory_invoker(RtManagedMethodPointer method_pointer, c
 }
 
 // @icall: System.Runtime.RuntimeImports::Memmove
-RtResultVoid SystemRuntimeRuntimeImports::memmove(uint8_t* dest, const uint8_t* src, uintptr_t size)
+RtResultVoid SystemRuntimeRuntimeImports::memmove(uint8_t* dest, const uint8_t* src, uintptr_t size) noexcept
 {
     std::memmove(dest, src, size);
     RET_VOID_OK();
 }
 
 static RtResultVoid memmove_invoker(RtManagedMethodPointer method_pointer, const RtMethodInfo* method, const interp::RtStackObject* params,
-                                    interp::RtStackObject* ret)
+                                    interp::RtStackObject* ret) noexcept
 {
     uint8_t* dest = EvalStackOp::get_param<uint8_t*>(params, 0);
     const uint8_t* src = EvalStackOp::get_param<const uint8_t*>(params, 1);
@@ -39,7 +41,7 @@ static RtResultVoid memmove_invoker(RtManagedMethodPointer method_pointer, const
 }
 
 // @icall: System.Runtime.RuntimeImports::Memmove_wbarrier
-RtResultVoid SystemRuntimeRuntimeImports::memmove_wbarrier(uint8_t* dest, const uint8_t* src, uintptr_t size)
+RtResultVoid SystemRuntimeRuntimeImports::memmove_wbarrier(uint8_t* dest, const uint8_t* src, uintptr_t size) noexcept
 {
     // FIXME: implement write barrier
     std::memmove(dest, src, size);
@@ -47,7 +49,7 @@ RtResultVoid SystemRuntimeRuntimeImports::memmove_wbarrier(uint8_t* dest, const 
 }
 
 static RtResultVoid memmove_wbarrier_invoker(RtManagedMethodPointer method_pointer, const RtMethodInfo* method, const interp::RtStackObject* params,
-                                             interp::RtStackObject* ret)
+                                             interp::RtStackObject* ret) noexcept
 {
     uint8_t* dest = EvalStackOp::get_param<uint8_t*>(params, 0);
     const uint8_t* src = EvalStackOp::get_param<const uint8_t*>(params, 1);
@@ -56,7 +58,7 @@ static RtResultVoid memmove_wbarrier_invoker(RtManagedMethodPointer method_point
 }
 
 // @icall: System.Runtime.RuntimeImports::_ecvt_s
-RtResultVoid SystemRuntimeRuntimeImports::ecvt_s(uint8_t* buffer, int32_t size, double value, int32_t digits, int32_t* decpt, int32_t* sign)
+RtResultVoid SystemRuntimeRuntimeImports::ecvt_s(uint8_t* buffer, int32_t size, double value, int32_t digits, int32_t* decpt, int32_t* sign) noexcept
 {
 #ifdef LEANCLR_PLATFORM_WIN
     // Windows/MSVC: _ecvt_s
@@ -72,10 +74,10 @@ RtResultVoid SystemRuntimeRuntimeImports::ecvt_s(uint8_t* buffer, int32_t size, 
     {
         RET_ERR(RtErr::Argument);
     }
-    std::strncpy(reinterpret_cast<char*>(buffer), str, size - 1);
+    std::strncpy(reinterpret_cast<char*>(buffer), str, static_cast<size_t>(size - 1));
     buffer[size - 1] = 0;
 #else
-    int written = snprintf(reinterpret_cast<char*>(buffer), size, "%.*e", digits, value);
+    int written = snprintf(reinterpret_cast<char*>(buffer), static_cast<size_t>(size), "%.*e", digits, value);
     if (written < 0 || written >= size)
     {
         RET_ERR(RtErr::Argument);
@@ -100,7 +102,7 @@ RtResultVoid SystemRuntimeRuntimeImports::ecvt_s(uint8_t* buffer, int32_t size, 
 }
 
 static RtResultVoid ecvt_s_invoker(RtManagedMethodPointer method_pointer, const RtMethodInfo* method, const interp::RtStackObject* params,
-                                   interp::RtStackObject* ret)
+                                   interp::RtStackObject* ret) noexcept
 {
     uint8_t* buffer = EvalStackOp::get_param<uint8_t*>(params, 0);
     int32_t size = EvalStackOp::get_param<int32_t>(params, 1);
@@ -111,7 +113,7 @@ static RtResultVoid ecvt_s_invoker(RtManagedMethodPointer method_pointer, const 
     return SystemRuntimeRuntimeImports::ecvt_s(buffer, size, value, digits, decpt, sign);
 }
 
-utils::Span<vm::InternalCallEntry> SystemRuntimeRuntimeImports::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemRuntimeRuntimeImports::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Runtime.RuntimeImports::ZeroMemory", (vm::InternalCallFunction)&SystemRuntimeRuntimeImports::zero_memory, zero_memory_invoker},
@@ -122,4 +124,5 @@ utils::Span<vm::InternalCallEntry> SystemRuntimeRuntimeImports::get_internal_cal
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

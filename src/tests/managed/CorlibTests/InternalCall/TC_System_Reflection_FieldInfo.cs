@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
@@ -25,6 +27,18 @@ namespace CorlibTests.InternalCall
             public int GetValue()
             {
                 return value;
+            }
+        }
+
+        public class MarshalA
+        {
+            [MarshalAs(UnmanagedType.I4)]
+            public int value;
+
+
+            public MarshalA()
+            {
+                value = 1;
             }
         }
 
@@ -103,6 +117,34 @@ namespace CorlibTests.InternalCall
             var f = typeof(A).GetField("value2");
             int offset = System.Runtime.InteropServices.Marshal.OffsetOf(typeof(A), "value2").ToInt32();
             Assert.Equal(8, offset);
+        }
+
+        [UnitTest]
+        public void GetMarshalInfo_WithoutMarshalAs_ReturnsNull()
+        {
+            var method = typeof(FieldInfo).GetMethod("get_marshal_info", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(method);
+
+            var field = typeof(A).GetField("value");
+            Assert.NotNull(field);
+
+            object marshalInfo = method.Invoke(field, null);
+            Assert.Null(marshalInfo);
+        }
+
+        [UnitTest]
+        public void GetMarshalInfo_WithMarshalAs_ReturnsMarshalAsAttribute()
+        {
+            var method = typeof(FieldInfo).GetMethod("get_marshal_info", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(method);
+
+            var field = typeof(MarshalA).GetField("value");
+            Assert.NotNull(field);
+
+            object marshalInfo = method.Invoke(field, null);
+            Assert.NotNull(marshalInfo);
+            Assert.Equal(typeof(MarshalAsAttribute), marshalInfo.GetType());
+            Assert.Equal(UnmanagedType.I4, ((MarshalAsAttribute)marshalInfo).Value);
         }
     }
 }

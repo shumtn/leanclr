@@ -1,8 +1,21 @@
-﻿using dnlib.DotNet;
+﻿using System.Linq;
+using dnlib.DotNet;
 using LeanAOT.Core;
 
 namespace LeanAOT.GenerationPlan
 {
+
+    public class ManifestArgs
+    {
+        public AssemblyCache assemblyCache;
+
+        public List<string> aotAssemblyNames;
+
+        /// <summary>
+        /// When non-null, method inclusion after attribute/intrinsic checks follows <c>aot.xml</c> rules (see design doc).
+        /// </summary>
+        public AotMethodRulesEvaluator AotRulesEvaluator;
+    }
 
     public class Manifest
     {
@@ -35,27 +48,47 @@ namespace LeanAOT.GenerationPlan
                     classPlans.Add(classPlan);
                     foreach (var method in type.Methods)
                     {
-                        if (!method.HasBody || method.IsAbstract || method.HasGenericParameters || method.DeclaringType.HasGenericParameters)
+                        if (method.IsRuntime || method.IsAbstract || method.HasGenericParameters || method.DeclaringType.HasGenericParameters)
                             continue;
-                        if (method.Body.HasExceptionHandlers)
+                        if (method.HasBody && method.Body.HasExceptionHandlers)
                             continue;
+                        // don't aot System.String's constructor, because we will handle it in a special way
+                        if (!method.HasBody && method.IsConstructor && type.FullName == "System.String")
+                        {
+                            continue;
+                        }
                         if (method.CallingConvention == CallingConvention.VarArg)
                         {
                             s_logger.Warn($"Skip method with vararg calling convention: {method.FullName} token: {method.MDToken}");
                             continue;
                         }
                         string typeName = method.DeclaringType.Name;
-                        if (method.CustomAttributes.Any(ca => ca.TypeFullName == "AotMethodAttribute" && ca.ConstructorArguments[0].Value.Equals(false)))
+                        CustomAttribute ca = method.CustomAttributes.FirstOrDefault(ca => ca.TypeFullName == "AotMethodAttribute" );
+                        if (ca != null)
                         {
+                            bool isAotMethod = (bool)ca.ConstructorArguments[0].Value;
+                            if (!isAotMethod)
+                            {
+                                continue;
+                            }
+                            AddMethodPlan(methodPlans, method);
+                            continue;
+                        }
+                        if (method.IsPinvokeImpl || method.IsInternalCall)
+                        {
+                            // aot or intrinsic methods must be aot
+                            AddMethodPlan(methodPlans, method);
                             continue;
                         }
 
-                        var methodPlan = new MethodDefPlan()
+                        // 8.3–8.4: rule files; no match => AOT (design)
+                        if (args.AotRulesEvaluator != null && !args.AotRulesEvaluator.ShouldIncludeByRules(assName, method))
                         {
-                            MethodDef = method,
-                        };
-                        s_logger.Debug($"[Manifest] Add MethodDefPlan: {method.FullName}");
-                        methodPlans.Add(methodPlan);
+                            s_logger.Debug($"[Manifest] Skip method (AOT rules): {method.FullName} token: {method.MDToken}");
+                            continue;
+                        }
+
+                        AddMethodPlan(methodPlans, method);
                     }
                 }
                 var assPlan = new AssemblyPlan(mod, assName, classPlans, methodPlans);
@@ -64,22 +97,26 @@ namespace LeanAOT.GenerationPlan
             }
         }
 
+        private static void AddMethodPlan(List<MethodDefPlan> methodPlans, MethodDef method)
+        {
+            var methodPlan = new MethodDefPlan()
+            {
+                MethodDef = method,
+            };
+            s_logger.Debug($"[Manifest] Add MethodDefPlan: {method.FullName}");
+            methodPlans.Add(methodPlan);
+        }
+
         public bool ShouldAOT(IMethod method)
         {
-            if (method is MethodDef methodDef)
+            MethodDef methodDef = method.ResolveMethodDef();
+            if (methodDef != null)
             {
-                return _assemblyPlans.TryGetValue(methodDef.Module.Assembly.FullName, out var assPlan) &&
-                    assPlan.MethodPlans.Any(mp => mp.MethodDef == methodDef);
+                return AssemblyPlans.TryGetValue(methodDef.Module.Assembly.Name, out var assPlan) &&
+                    assPlan.ContainsMethod(method);
             }
             return false;
         }
-    }
-
-    public class ManifestArgs
-    {
-        public AssemblyCache assemblyCache;
-
-        public List<string> aotAssemblyNames;
     }
 
 }

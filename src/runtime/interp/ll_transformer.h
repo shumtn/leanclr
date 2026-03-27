@@ -5,14 +5,18 @@
 #include "utils/not_free_list.h"
 #include "utils/hashmap.h"
 
-namespace leanclr::interp::hl
+namespace leanclr
+{
+namespace interp
+{
+namespace hl
 {
 struct GeneralInst;
 struct BasicBlock;
 class Transformer;
-}; // namespace leanclr::interp::hl
+} // namespace hl
 
-namespace leanclr::interp::ll
+namespace ll
 {
 
 struct GeneralInst;
@@ -403,6 +407,11 @@ struct GeneralInst
         return arg2.value;
     }
 
+    void set_frame_base(size_t frame_base_idx)
+    {
+        arg2.value = frame_base_idx;
+    }
+
     size_t get_invoker_idx() const
     {
         return arg3.value;
@@ -517,4 +526,6 @@ class Transformer
     RtResult<uint32_t> translate_il_offset_to_ir_offset(uint32_t il_offset);
     RtResultVoid build_codes(RtInterpMethodInfo* interp_method);
 };
-} // namespace leanclr::interp::ll
+} // namespace ll
+} // namespace interp
+} // namespace leanclr

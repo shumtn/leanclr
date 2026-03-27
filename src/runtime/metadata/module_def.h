@@ -1,6 +1,6 @@
 #pragma once
 
-#include "rt_base.h"
+#include "core/rt_base.h"
 #include "cli_image.h"
 #include "pdb_image.h"
 #include "rt_metadata.h"
@@ -12,7 +12,9 @@
 #include "utils/string_util.h"
 #include "utils/rt_span.h"
 
-namespace leanclr::metadata
+namespace leanclr
+{
+namespace metadata
 {
 
 struct ClassLayoutData
@@ -277,7 +279,7 @@ class RtModuleDef
         auto it = _nestedTypeDefRid2EnclosingTypeDefRidMap.find(rid);
         if (it != _nestedTypeDefRid2EnclosingTypeDefRidMap.end())
         {
-            return std::optional(it->second);
+            return std::optional<uint32_t>(it->second);
         }
         return std::nullopt;
     }
@@ -440,4 +442,5 @@ class RtModuleDef
 
     utils::HashMap<uint32_t, vm::RtString*> _userStringMap;
 };
-} // namespace leanclr::metadata
+} // namespace metadata
+} // namespace leanclr

@@ -7,12 +7,16 @@
 #include "generic_class.h"
 #include "rt_string.h"
 #include "method.h"
+#include "assembly.h"
 #include "metadata/rt_metadata.h"
 #include "metadata/module_def.h"
 #include "metadata/metadata_cache.h"
+#include "metadata/metadata_name.h"
 #include "utils/string_builder.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 RtResult<bool> Type::is_value_type(const metadata::RtTypeSig* typeSig)
 {
@@ -254,14 +258,6 @@ RtResult<const metadata::RtTypeSig*> Type::resolve_assembly_qualified_name(metad
     }
 }
 
-enum class TypeNameFormat
-{
-    IL,
-    Reflection,
-    FullName,
-    AssemblyQualified,
-};
-
 static void append_public_key_token(utils::StringBuilder& sb, const uint8_t* token, size_t length)
 {
     for (size_t i = 0; i < length; ++i)
@@ -304,7 +300,7 @@ static void append_assembly_name(utils::StringBuilder& sb, const metadata::RtAss
     }
 }
 
-RtResultVoid append_type_full_name(utils::StringBuilder& sb, const metadata::RtTypeSig* typeSig, TypeNameFormat format, bool nested)
+RtResultVoid Type::append_type_full_name(utils::StringBuilder& sb, const metadata::RtTypeSig* typeSig, TypeNameFormat format, bool nested)
 {
     switch (typeSig->ele_type)
     {
@@ -383,7 +379,23 @@ RtResultVoid append_type_full_name(utils::StringBuilder& sb, const metadata::RtT
         break;
     }
     case metadata::RtElementType::FnPtr:
-        RET_ERR(RtErr::NotImplemented);
+    {
+        sb.append_cstr("delegate* unmanaged");
+        const metadata::RtMethodSig* method_sig = typeSig->data.method_sig;
+        assert(method_sig->generic_param_count == 0 && "Generic parameters are not supported for function pointers");
+        sb.append_char('[');
+        sb.append_cstr(metadata::MetadataName::get_call_convention_name((metadata::RtSigType)method_sig->flags));
+        sb.append_char(']');
+        sb.append_char('<');
+        for (size_t i = 0; i < method_sig->params.size(); ++i)
+        {
+            RET_ERR_ON_FAIL(append_type_full_name(sb, method_sig->params[i], format, false));
+            sb.append_char(',');
+        }
+        RET_ERR_ON_FAIL(append_type_full_name(sb, method_sig->return_type, format, false));
+        sb.append_char('>');
+        break;
+    }
     case metadata::RtElementType::Var:
     case metadata::RtElementType::MVar:
     {
@@ -503,7 +515,7 @@ RtResult<RtString*> Type::get_full_name(const metadata::RtTypeSig* typeSig, bool
     utils::StringBuilder sb;
     TypeNameFormat format = full_name ? (assembly_qualified ? TypeNameFormat::AssemblyQualified : TypeNameFormat::FullName) : TypeNameFormat::Reflection;
     RET_ERR_ON_FAIL(append_type_full_name(sb, typeSig, format, false));
-    RtString* name = String::create_string_from_utf8chars(sb.as_cstr(), sb.length());
+    RtString* name = String::create_string_from_utf8chars(sb.as_cstr(), static_cast<int32_t>(sb.length()));
     RET_OK(name);
 }
 
@@ -556,14 +568,14 @@ RtResult<metadata::RtClass*> Type::get_declaring_type(const metadata::RtTypeSig*
         else
         {
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const metadata::RtMethodInfo*, method, Method::get_method_by_method_def_gid(owner->owner_gid));
-            RET_OK(method->parent);
+            RET_OK(const_cast<metadata::RtClass*>(method->parent));
         }
     }
     else
     {
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, klass, Class::get_class_from_typesig(typeSig));
-        metadata::RtClass* declaringClass = Class::get_enclosing_class(klass);
-        RET_OK(declaringClass);
+        const metadata::RtClass* declaringClass = Class::get_enclosing_class(klass);
+        RET_OK(const_cast<metadata::RtClass*>(declaringClass));
     }
 }
 
@@ -620,7 +632,7 @@ static RtResultVoid parse_assembly_version(const char* start, const char* end, m
     {
         if (*p >= '0' && *p <= '9')
         {
-            parts[part_idx] = parts[part_idx] * 10 + (*p - '0');
+            parts[part_idx] = static_cast<uint16_t>(static_cast<unsigned int>(parts[part_idx]) * 10u + static_cast<unsigned int>(*p - '0'));
             p++;
         }
         else if (*p == '.')
@@ -659,7 +671,7 @@ RtResultVoid Type::parse_assembly_name(const char* input, size_t input_len, meta
     // Extract assembly name
     const char* name_start = trim_spaces(p, comma);
     const char* name_end = trim_spaces_end(name_start, comma);
-    size_t name_len = name_end - name_start;
+    size_t name_len = static_cast<size_t>(name_end - name_start);
 
     if (name_len > 0)
     {
@@ -689,7 +701,7 @@ RtResultVoid Type::parse_assembly_name(const char* input, size_t input_len, meta
             next_comma++;
 
         const char* seg_end = trim_spaces_end(seg_start, next_comma);
-        size_t seg_len = seg_end - seg_start;
+        size_t seg_len = static_cast<size_t>(seg_end - seg_start);
 
         if (seg_len > 0)
         {
@@ -704,7 +716,7 @@ RtResultVoid Type::parse_assembly_name(const char* input, size_t input_len, meta
             {
                 const char* value_start = seg_start + 8; // strlen("Culture=")
                 value_start = trim_spaces(value_start, seg_end);
-                size_t value_len = seg_end - value_start;
+                size_t value_len = static_cast<size_t>(seg_end - value_start);
 
                 if (value_len == 7 && std::memcmp(value_start, "neutral", 7) == 0)
                 {
@@ -723,7 +735,7 @@ RtResultVoid Type::parse_assembly_name(const char* input, size_t input_len, meta
                 *is_token_defined = true;
                 const char* value_start = seg_start + 15; // strlen("PublicKeyToken=")
                 value_start = trim_spaces(value_start, seg_end);
-                size_t value_len = seg_end - value_start;
+                size_t value_len = static_cast<size_t>(seg_end - value_start);
 
                 if (value_len != RT_PUBLIC_KEY_TOKEN_HEX_STRING_WITH_NULL_TERMINATOR_LENGTH - 1)
                 {
@@ -740,4 +752,59 @@ RtResultVoid Type::parse_assembly_name(const char* input, size_t input_len, meta
 
     RET_VOID_OK();
 }
-} // namespace leanclr::vm
+
+RtResult<const metadata::RtTypeSig*> Type::parse_assembly_qualified_type(metadata::RtModuleDef* default_mod, const char* assembly_qualified_type_name,
+                                                                         size_t name_len, bool ignore_case)
+{
+    AssemblyQualifiedNames qn(assembly_qualified_type_name, name_len);
+    qn.parse();
+
+    assert(default_mod);
+    metadata::RtModuleDef* search_ass_list[2];
+    if (!qn.assembly_name.empty())
+    {
+        metadata::RtAssembly* ass = Assembly::find_by_name(qn.assembly_name.c_str());
+        if (!ass)
+        {
+            RET_ERR(RtErr::TypeLoad);
+        }
+        search_ass_list[0] = ass->mod;
+        search_ass_list[1] = nullptr;
+    }
+    else
+    {
+        search_ass_list[0] = default_mod;
+        metadata::RtModuleDef* corlib = Assembly::get_corlib()->mod;
+        search_ass_list[1] = default_mod != corlib ? corlib : nullptr;
+    }
+    for (metadata::RtModuleDef* mod : search_ass_list)
+    {
+        if (!mod)
+        {
+            break;
+        }
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const metadata::RtTypeSig*, typeSig,
+                                                Type::resolve_assembly_qualified_name(mod, qn.type_full_name.c_str(), qn.type_full_name.size(), false));
+        if (!typeSig)
+        {
+            continue;
+        }
+        return typeSig;
+    }
+    // search all assemblies
+    auto modules_span = metadata::RtModuleDef::get_registered_modules();
+    utils::Vector<metadata::RtModuleDef*> registered_modules = utils::Vector<metadata::RtModuleDef*>(modules_span.begin(), modules_span.end());
+    for (metadata::RtModuleDef* mod : registered_modules)
+    {
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const metadata::RtTypeSig*, typeSig,
+                                                Type::resolve_assembly_qualified_name(mod, qn.type_full_name.c_str(), qn.type_full_name.size(), false));
+        if (!typeSig)
+        {
+            continue;
+        }
+        return typeSig;
+    }
+    RET_ERR(RtErr::TypeLoad);
+}
+} // namespace vm
+} // namespace leanclr

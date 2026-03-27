@@ -1,36 +1,38 @@
 #include "system_threading_volatile.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResult<int64_t> SystemThreadingVolatile::read_i64(const int64_t* location)
-{
-    RET_OK(*location);
-}
-
-RtResult<uint64_t> SystemThreadingVolatile::read_u64(const uint64_t* location)
+RtResult<int64_t> SystemThreadingVolatile::read_i64(const int64_t* location) noexcept
 {
     RET_OK(*location);
 }
 
-RtResult<double> SystemThreadingVolatile::read_f64(const double* location)
+RtResult<uint64_t> SystemThreadingVolatile::read_u64(const uint64_t* location) noexcept
 {
     RET_OK(*location);
 }
 
-RtResultVoid SystemThreadingVolatile::write_i64(int64_t* location, int64_t value)
+RtResult<double> SystemThreadingVolatile::read_f64(const double* location) noexcept
+{
+    RET_OK(*location);
+}
+
+RtResultVoid SystemThreadingVolatile::write_i64(int64_t* location, int64_t value) noexcept
 {
     *location = value;
     RET_VOID_OK();
 }
 
-RtResultVoid SystemThreadingVolatile::write_u64(uint64_t* location, uint64_t value)
+RtResultVoid SystemThreadingVolatile::write_u64(uint64_t* location, uint64_t value) noexcept
 {
     *location = value;
     RET_VOID_OK();
 }
 
-RtResultVoid SystemThreadingVolatile::write_f64(double* location, double value)
+RtResultVoid SystemThreadingVolatile::write_f64(double* location, double value) noexcept
 {
     *location = value;
     RET_VOID_OK();
@@ -38,7 +40,7 @@ RtResultVoid SystemThreadingVolatile::write_f64(double* location, double value)
 
 /// @icall: System.Threading.Volatile::Read(System.Int64&)
 static RtResultVoid read_i64_icall_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                           const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                           const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -50,7 +52,7 @@ static RtResultVoid read_i64_icall_invoker(metadata::RtManagedMethodPointer meth
 
 /// @icall: System.Threading.Volatile::Read(System.UInt64&)
 static RtResultVoid read_u64_icall_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                           const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                           const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -62,7 +64,7 @@ static RtResultVoid read_u64_icall_invoker(metadata::RtManagedMethodPointer meth
 
 /// @icall: System.Threading.Volatile::Read(System.Double&)
 static RtResultVoid read_f64_icall_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                           const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                           const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -74,7 +76,7 @@ static RtResultVoid read_f64_icall_invoker(metadata::RtManagedMethodPointer meth
 
 /// @icall: System.Threading.Volatile::Write(System.Int64&,System.Int64)
 static RtResultVoid write_i64_icall_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -87,7 +89,7 @@ static RtResultVoid write_i64_icall_invoker(metadata::RtManagedMethodPointer met
 
 /// @icall: System.Threading.Volatile::Write(System.UInt64&,System.UInt64)
 static RtResultVoid write_u64_icall_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -100,7 +102,7 @@ static RtResultVoid write_u64_icall_invoker(metadata::RtManagedMethodPointer met
 
 /// @icall: System.Threading.Volatile::Write(System.Double&,System.Double)
 static RtResultVoid write_f64_icall_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -111,7 +113,7 @@ static RtResultVoid write_f64_icall_invoker(metadata::RtManagedMethodPointer met
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemThreadingVolatile::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemThreadingVolatile::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Threading.Volatile::Read(System.Int64&)", (vm::InternalCallFunction)&SystemThreadingVolatile::read_i64, read_i64_icall_invoker},
@@ -127,4 +129,5 @@ utils::Span<vm::InternalCallEntry> SystemThreadingVolatile::get_internal_call_en
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

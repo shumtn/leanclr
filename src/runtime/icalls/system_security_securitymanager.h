@@ -2,14 +2,17 @@
 
 #include "icall_base.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 class SystemSecuritySecurityManager
 {
   public:
     // @icall: System.Security.SecurityManager::get_SecurityEnabled()
-    static RtResult<bool> get_security_enabled();
+    static RtResult<bool> get_security_enabled() noexcept;
 
-    static utils::Span<vm::InternalCallEntry> get_internal_call_entries();
+    static utils::Span<vm::InternalCallEntry> get_internal_call_entries() noexcept;
 };
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

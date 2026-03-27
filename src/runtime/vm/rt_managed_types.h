@@ -2,7 +2,9 @@
 
 #include "metadata/rt_metadata.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 // Array bounds structure
 struct ArrayBounds
@@ -14,7 +16,7 @@ struct ArrayBounds
 // Managed object header
 struct RtObject
 {
-    metadata::RtClass* klass;
+    const metadata::RtClass* klass;
     void* __sync_block;
 };
 
@@ -60,7 +62,7 @@ using RtReflectionMonoType = RtReflectionRuntimeType;
 struct RtReflectionField
 {
     RtObject header;
-    metadata::RtClass* klass;
+    const metadata::RtClass* klass;
     const metadata::RtFieldInfo* field;
     RtString* name;
     RtReflectionType* type_;
@@ -103,7 +105,7 @@ struct RtMonoPropertyInfo
 // Reflection property
 struct RtReflectionProperty : public RtObject
 {
-    metadata::RtClass* klass;
+    const metadata::RtClass* klass;
     const metadata::RtPropertyInfo* property;
     RtMonoPropertyInfo info;
     uint32_t cached;
@@ -127,12 +129,18 @@ struct RtReflectionEventInfo
 // Reflection parameter
 struct RtReflectionParameter : public RtObject
 {
+#if LEANCLR_NETFRAMEWORK_4_X
     uint32_t attrs;
+#endif
     RtReflectionType* parent_type;
     RtObject* default_value;
     RtObject* member;
     RtString* name;
     int32_t index;
+
+#if !LEANCLR_NETFRAMEWORK_4_X
+    uint32_t attrs;
+#endif
     RtObject* marshaling_info;
 };
 
@@ -195,7 +203,7 @@ struct RtTypedReference
 {
     const metadata::RtTypeSig* type_handle;
     const void* value;
-    metadata::RtClass* klass;
+    const metadata::RtClass* klass;
 };
 
 // Delegate data
@@ -216,8 +224,11 @@ struct RtDelegate : public RtObject
     uintptr_t _delegate_trampoline;
     intptr_t extra_arg;
     uintptr_t method_code;
+#if LEANCLR_NETFRAMEWORK_4_X
+    // these two fields exist since unity 2021.
     uintptr_t _interp_method;
     metadata::RtManagedMethodPointer interp_invoke_impl;
+#endif
     const metadata::RtMethodInfo* method_info;
     const metadata::RtMethodInfo* original_method_info;
     RtDelegateData* data;
@@ -303,7 +314,10 @@ struct RtException : public RtObject
     RtObject* safe_serialization_manager;
     RtArray* captured_traces;
     RtArray* native_trace_ips;
+
+#if LEANCLR_NETFRAMEWORK_4_X
     int32_t caught_in_unmanaged;
+#endif
 };
 
 // Read-only span
@@ -407,6 +421,14 @@ struct RtDateTimeFormatInfo : public RtObject
     RtArray* optional_calendars;
     bool read_only;
     int32_t format_flags;
+#if !LEANCLR_NETFRAMEWORK_4_X
+    int32_t culture_id;
+    bool use_user_override;
+    bool use_calendar_info;
+    int data_item;
+    bool is_default_calendar;
+    RtString* date_words;
+#endif
     RtString* full_time_span_positive_pattern;
     RtString* full_time_span_negative_pattern;
     RtArray* dtfi_token_hash;
@@ -644,9 +666,36 @@ struct RtThread : public RtObject
 };
 
 // Constants for managed types
-const uint32_t RT_OBJECT_HEADER_SIZE = sizeof(RtObject);
-const uint32_t RT_TYPED_REFERENCE_SIZE = sizeof(RtTypedReference);
-const size_t RT_PUBLIC_KEY_BYTES_LEN = 8;
-const size_t RT_PUBLIC_KEY_TOKEN_HEX_STRING_WITH_NULL_TERMINATOR_LENGTH = 17;
+constexpr uint32_t RT_OBJECT_HEADER_SIZE = sizeof(RtObject);
 
-} // namespace leanclr::vm
+// NOTE: RtArray is not a standard-layout type (both RtObject and RtArray have
+// non-static data members), so offsetof on it is "conditionally-supported" per
+// C++17. In practice the layout is stable on every toolchain we ship
+// (MSVC/GCC/Clang/Emscripten), so we suppress the resulting warning here.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4840)
+#else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
+constexpr uint32_t RT_STRING_FIRST_CHAR_OFFSET = offsetof(RtString, first_char);
+constexpr uint32_t RT_ARRAY_HEADER_SIZE = offsetof(RtArray, first_data);
+constexpr uint32_t RT_ARRAY_FIRST_DATA_OFFSET = offsetof(RtArray, first_data);
+constexpr uint32_t RT_ARRAY_LENGTH_OFFSET = offsetof(RtArray, length);
+constexpr uint32_t RT_ARRAY_BOUNDS_OFFSET = offsetof(RtArray, bounds);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else
+#pragma GCC diagnostic pop
+#endif
+
+const int32_t RT_MAX_ARRAY_INDEX = INT32_MAX;
+const int32_t RT_MAX_ARRAY_RANK = 32;
+
+constexpr uint32_t RT_TYPED_REFERENCE_SIZE = sizeof(RtTypedReference);
+constexpr size_t RT_PUBLIC_KEY_BYTES_LEN = 8;
+constexpr size_t RT_PUBLIC_KEY_TOKEN_HEX_STRING_WITH_NULL_TERMINATOR_LENGTH = 17;
+
+} // namespace vm
+} // namespace leanclr

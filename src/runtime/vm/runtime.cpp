@@ -22,11 +22,14 @@
 #include "metadata/module_def.h"
 #include "metadata/aot_module.h"
 #include "alloc/general_allocation.h"
+#include "alloc/metadata_allocation.h"
 #include "gc/garbage_collector.h"
 #include "interp/machine_state.h"
 #include "utils/rt_vector.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 // Helper structure for managing temporary buffers during method invocation
@@ -210,14 +213,14 @@ struct ScopeBufferGuard
                 break;
             }
             default:
-                RET_ERR(RtErr::ExecutionEngine);
+                RET_ASSERT_ERR(RtErr::ExecutionEngine);
             }
         }
 
         RET_OK(ArgsAndRetBuffers(args_buffer, ret_buffer));
     }
 
-    RtResult<ArgsAndRetBuffers> convert_object_array_params_to_temp_buffer(const metadata::RtMethodInfo* method, RtObject* obj, RtArray* params)
+    RtResult<ArgsAndRetBuffers> convert_object_params_to_temp_buffer(const metadata::RtMethodInfo* method, RtObject* obj, RtObject** params, int32_t paramCount)
     {
         if (Method::get_param_count_include_this(method) == 0 && Method::is_void_return(method))
         {
@@ -253,8 +256,6 @@ struct ScopeBufferGuard
             RET_OK(ArgsAndRetBuffers(args_buffer, ret_buffer));
         }
 
-        RtObject** params_arr_start = Array::get_array_data_start_as<RtObject*>(params);
-
         for (size_t i = 0; i < method_param_count; ++i)
         {
             const metadata::RtTypeSig* param_type_sig = method->parameters[i];
@@ -263,7 +264,7 @@ struct ScopeBufferGuard
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(interp::ReduceTypeAndSize, reduceTypeAndSize,
                                                     interp::InterpDefs::get_reduce_type_and_size_by_typesig(param_type_sig));
 
-            RtObject* param = params_arr_start[i];
+            RtObject* param = params[i];
             interp::RtStackObject& dst = args_buffer[dst_idx];
             dst_idx += interp::InterpDefs::get_stack_object_size_by_byte_size(reduceTypeAndSize.byte_size);
 
@@ -277,7 +278,7 @@ struct ScopeBufferGuard
                 }
                 else
                 {
-                    dst.ptr = &params_arr_start[i];
+                    dst.ptr = &params[i];
                 }
             }
             else
@@ -346,7 +347,7 @@ static RtResult<RtObject*> invoke_without_run_cctor(const metadata::RtMethodInfo
     interp::RtStackObject* ret_buffer = buffers.ret_buffer;
 
     // Invoke the method
-    auto invoke_ptr = reinterpret_cast<metadata::RtInvokeMethodPointer>(method->invoke_method_ptr);
+    auto invoke_ptr = CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(method->invoke_method_ptr);
     RET_ERR_ON_FAIL(invoke_ptr(method->method_ptr, method, arg_buffer, ret_buffer));
 
     return convert_return_value(method->return_type, ret_buffer);
@@ -357,6 +358,7 @@ static RtResult<RtObject*> invoke_without_run_cctor(const metadata::RtMethodInfo
 RtResultVoid Runtime::initialize()
 {
     // Initialize subsystems
+    alloc::MetadataAllocation::init();
     Intrinsics::initialize();
     InternalCalls::initialize();
     PInvokes::initialize();
@@ -392,6 +394,14 @@ RtResultVoid Runtime::initialize()
     const char** argv;
     Settings::get_command_line_arguments(argc, argv);
     RET_ERR_ON_FAIL(Environment::init_cmdline_args(argv, argc));
+
+    metadata::RtModuleDef* corlib_mod = Assembly::get_corlib()->mod;
+    auto corlib_aot_module_data = corlib_mod->get_aot_module_data();
+    if (corlib_aot_module_data != nullptr && corlib_aot_module_data->deferred_initializer)
+    {
+        corlib_aot_module_data->deferred_initializer(corlib_mod);
+    }
+
     RET_VOID_OK();
 }
 
@@ -400,15 +410,15 @@ void Runtime::shutdown()
     // todo: implement shutdown logic
 }
 
-RtResultVoid Runtime::run_class_static_constructor(metadata::RtClass* klass)
+RtResultVoid Runtime::run_class_static_constructor(const metadata::RtClass* klass)
 {
     assert(klass);
 
     if (Class::is_cctor_not_finished(klass))
     {
         RET_ERR_ON_FAIL(run_module_static_constructor(klass->image));
-        RET_ERR_ON_FAIL(Class::initialize_all(klass));
-        Class::set_cctor_finished(klass);
+        RET_ERR_ON_FAIL(Class::initialize_all(const_cast<metadata::RtClass*>(klass)));
+        Class::set_cctor_finished(const_cast<metadata::RtClass*>(klass));
 
         const metadata::RtMethodInfo* cctor = Class::get_static_constructor(klass);
         if (cctor)
@@ -463,7 +473,8 @@ RtResult<RtObject*> Runtime::invoke_with_run_cctor(const metadata::RtMethodInfo*
     return invoke_without_run_cctor(method, obj, params);
 }
 
-RtResult<RtObject*> Runtime::invoke_array_arguments_without_run_cctor(const metadata::RtMethodInfo* method, RtObject* obj, RtArray* params)
+RtResult<RtObject*> Runtime::invoke_object_arguments_without_run_cctor(const metadata::RtMethodInfo* method, RtObject* obj, RtObject** params,
+                                                                       int32_t paramCount)
 {
     assert(method);
 
@@ -489,14 +500,14 @@ RtResult<RtObject*> Runtime::invoke_array_arguments_without_run_cctor(const meta
     }
 
     ScopeBufferGuard guard;
-    auto retBuffers = guard.convert_object_array_params_to_temp_buffer(actual_method, actual_obj, params);
+    auto retBuffers = guard.convert_object_params_to_temp_buffer(actual_method, actual_obj, params, paramCount);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL2(ScopeBufferGuard::ArgsAndRetBuffers, buffers, retBuffers);
 
     interp::RtStackObject* arg_buffer = buffers.args_buffer;
     interp::RtStackObject* ret_buffer = buffers.ret_buffer;
 
     // Invoke the method
-    auto invoke_ptr = reinterpret_cast<metadata::RtInvokeMethodPointer>(actual_method->invoke_method_ptr);
+    auto invoke_ptr = CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(actual_method->invoke_method_ptr);
     RET_ERR_ON_FAIL(invoke_ptr(actual_method->method_ptr, actual_method, arg_buffer, ret_buffer));
 
     if (return_instance)
@@ -509,10 +520,37 @@ RtResult<RtObject*> Runtime::invoke_array_arguments_without_run_cctor(const meta
     }
 }
 
-RtResult<RtObject*> Runtime::invoke_array_arguments_with_run_cctor(const metadata::RtMethodInfo* method, RtObject* obj, RtArray* params)
+RtResult<RtObject*> Runtime::invoke_object_arguments_with_run_cctor(const metadata::RtMethodInfo* method, RtObject* obj, RtObject** params, int32_t paramCount)
 {
     assert(method);
 
+    if (Method::is_static(method) && Class::is_cctor_not_finished(method->parent))
+    {
+        RET_ERR_ON_FAIL(run_class_static_constructor(method->parent));
+    }
+
+    return invoke_object_arguments_without_run_cctor(method, obj, params, paramCount);
+}
+
+RtResult<RtObject*> Runtime::invoke_array_arguments_without_run_cctor(const metadata::RtMethodInfo* method, RtObject* obj, RtArray* params)
+{
+    RtObject** params_data_start;
+    int32_t paramCount;
+    if (params)
+    {
+        params_data_start = Array::get_array_data_start_as<RtObject*>(params);
+        paramCount = Array::get_array_length(params);
+    }
+    else
+    {
+        params_data_start = nullptr;
+        paramCount = 0;
+    }
+    return invoke_object_arguments_without_run_cctor(method, obj, params_data_start, paramCount);
+}
+
+RtResult<RtObject*> Runtime::invoke_array_arguments_with_run_cctor(const metadata::RtMethodInfo* method, RtObject* obj, RtArray* params)
+{
     if (Method::is_static(method) && Class::is_cctor_not_finished(method->parent))
     {
         RET_ERR_ON_FAIL(run_class_static_constructor(method->parent));
@@ -522,25 +560,25 @@ RtResult<RtObject*> Runtime::invoke_array_arguments_with_run_cctor(const metadat
 }
 
 RtResultVoid Runtime::invoke_stackobject_arguments_without_run_cctor(const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
-                                                                     interp::RtStackObject* ret)
+                                                                     interp::RtStackObject* ret) noexcept
 {
     assert(method);
 
-    auto invoke_ptr = reinterpret_cast<metadata::RtInvokeMethodPointer>(method->invoke_method_ptr);
+    auto invoke_ptr = CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(method->invoke_method_ptr);
     return invoke_ptr(method->method_ptr, method, params, ret);
 }
 
 RtResultVoid Runtime::virtual_invoke_stackobject_arguments_without_run_cctor(const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
-                                                                             interp::RtStackObject* ret)
+                                                                             interp::RtStackObject* ret) noexcept
 {
     assert(method);
 
-    auto invoke_ptr = reinterpret_cast<metadata::RtInvokeMethodPointer>(method->virtual_invoke_method_ptr);
+    auto invoke_ptr = CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(method->virtual_invoke_method_ptr);
     return invoke_ptr(method->method_ptr, method, params, ret);
 }
 
 RtResultVoid Runtime::invoke_stackobject_arguments_with_run_cctor(const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
-                                                                  interp::RtStackObject* ret)
+                                                                  interp::RtStackObject* ret) noexcept
 {
     assert(method);
 
@@ -552,4 +590,5 @@ RtResultVoid Runtime::invoke_stackobject_arguments_with_run_cctor(const metadata
     return invoke_stackobject_arguments_without_run_cctor(method, params, ret);
 }
 
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

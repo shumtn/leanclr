@@ -4,11 +4,13 @@
 #include "vm/method.h"
 #include "module_def.h"
 
-namespace leanclr::metadata
+namespace leanclr
+{
+namespace metadata
 {
 
 // Helper to append class full name recursively (namespace + name, handling nested types)
-RtResultVoid MetadataName::append_klass_full_name(utils::StringBuilder& sb, RtClass* klass)
+RtResultVoid MetadataName::append_klass_full_name(utils::StringBuilder& sb, const RtClass* klass)
 {
     // Check for enclosing type (nested class)
     if (klass->image)
@@ -157,7 +159,11 @@ RtResultVoid MetadataName::append_type_sig_name(utils::StringBuilder& sb, const 
         sb.append_cstr("System.UIntPtr");
         break;
     case RtElementType::FnPtr:
-        RET_ERR(RtErr::NotImplemented);
+    {
+        const RtMethodSig* method_sig = type_sig->data.method_sig;
+        RET_ERR_ON_FAIL(append_method_sig_name(sb, method_sig));
+        break;
+    }
     case RtElementType::Object:
         sb.append_cstr("System.Object");
         break;
@@ -169,7 +175,7 @@ RtResultVoid MetadataName::append_type_sig_name(utils::StringBuilder& sb, const 
         break;
     }
     case RtElementType::Sentinel:
-        RET_ERR(RtErr::NotImplemented);
+        RETURN_NOT_IMPLEMENTED_ERROR();
     default:
         // Unreachable
         break;
@@ -180,13 +186,49 @@ RtResultVoid MetadataName::append_type_sig_name(utils::StringBuilder& sb, const 
     {
         sb.append_cstr("&");
     }
+    RET_VOID_OK();
+}
 
+const char* MetadataName::get_call_convention_name(RtSigType call_conv)
+{
+    switch ((RtSigType)((uint8_t)call_conv & (uint8_t)RtSigType::TypeMask))
+    {
+    case RtSigType::C:
+        return "Cdecl";
+    case RtSigType::StdCall:
+        return "StdCall";
+    case RtSigType::ThisCall:
+        return "ThisCall";
+    case RtSigType::FastCall:
+        return "FastCall";
+    case RtSigType::VarArg:
+        return "VarArg";
+    default:
+        return "Default";
+    }
+}
+
+RtResultVoid MetadataName::append_method_sig_name(utils::StringBuilder& sb, const RtMethodSig* method_sig)
+{
+    sb.append_cstr("delegate* unmanaged");
+    assert(method_sig->generic_param_count == 0 && "Generic parameters are not supported for function pointers");
+    sb.append_char('[');
+    sb.append_cstr(get_call_convention_name((RtSigType)method_sig->flags));
+    sb.append_char(']');
+    sb.append_char('<');
+    for (size_t i = 0; i < method_sig->params.size(); ++i)
+    {
+        RET_ERR_ON_FAIL(append_type_sig_name(sb, method_sig->params[i]));
+        sb.append_char(',');
+    }
+    RET_ERR_ON_FAIL(append_type_sig_name(sb, method_sig->return_type));
+    sb.append_char('>');
     RET_VOID_OK();
 }
 
 RtResultVoid MetadataName::append_method_full_name_without_params(utils::StringBuilder& sb, const RtMethodInfo* method)
 {
-    RtClass* klass = method->parent;
+    const metadata::RtClass* klass = method->parent;
 
     // Append class full name
     RET_ERR_ON_FAIL(append_klass_full_name(sb, klass));
@@ -249,4 +291,5 @@ RtResultVoid MetadataName::append_method_full_name_with_params(utils::StringBuil
 //     RET_OK(sb.dup_to_zero_end_cstr());
 // }
 
-} // namespace leanclr::metadata
+} // namespace metadata
+} // namespace leanclr

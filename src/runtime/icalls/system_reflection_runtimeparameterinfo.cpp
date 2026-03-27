@@ -5,10 +5,12 @@
 #include "vm/reflection.h"
 #include "vm/rt_array.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResult<int32_t> SystemReflectionRuntimeParameterInfo::get_metadata_token(const vm::RtReflectionParameter* param)
+RtResult<int32_t> SystemReflectionRuntimeParameterInfo::get_metadata_token(const vm::RtReflectionParameter* param) noexcept
 {
     vm::RtReflectionMethod* ref_method = reinterpret_cast<vm::RtReflectionMethod*>(param->member);
     const metadata::RtMethodInfo* method = ref_method->method;
@@ -18,12 +20,12 @@ RtResult<int32_t> SystemReflectionRuntimeParameterInfo::get_metadata_token(const
 }
 
 RtResult<vm::RtArray*> SystemReflectionRuntimeParameterInfo::get_type_modifiers(vm::RtReflectionType* parameter_type, vm::RtObject* member, int32_t index,
-                                                                                bool optional)
+                                                                                bool optional) noexcept
 {
     (void)parameter_type;
 
     const metadata::RtMethodInfo* method = nullptr;
-    metadata::RtClass* member_klass = member->klass;
+    const metadata::RtClass* member_klass = member->klass;
     const metadata::RtClass* reflection_method_class = vm::Class::get_corlib_types().cls_reflection_method;
     const metadata::RtClass* reflection_constructor_class = vm::Class::get_corlib_types().cls_reflection_constructor;
 
@@ -59,8 +61,9 @@ RtResult<vm::RtArray*> SystemReflectionRuntimeParameterInfo::get_type_modifiers(
 }
 
 /// @icall: System.Reflection.RuntimeParameterInfo::GetMetadataToken()
-static RtResultVoid get_metadata_token_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                               const interp::RtStackObject* params, interp::RtStackObject* ret)
+static RtResultVoid get_metadata_token_invoker_system_reflection_runtimeparameterinfo(metadata::RtManagedMethodPointer methodPtr,
+                                                                                      const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
+                                                                                      interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -71,8 +74,8 @@ static RtResultVoid get_metadata_token_invoker(metadata::RtManagedMethodPointer 
 }
 
 /// @icall: System.Reflection.RuntimeParameterInfo::GetTypeModifiers(System.Type,System.Reflection.MemberInfo,System.Int32,System.Boolean)
-static RtResultVoid get_type_modifiers_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                               const interp::RtStackObject* params, interp::RtStackObject* ret)
+static RtResultVoid runtimeparameterinfo_get_type_modifiers_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
+                                                                    const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -86,15 +89,16 @@ static RtResultVoid get_type_modifiers_invoker(metadata::RtManagedMethodPointer 
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemReflectionRuntimeParameterInfo::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemReflectionRuntimeParameterInfo::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Reflection.RuntimeParameterInfo::GetMetadataToken()", (vm::InternalCallFunction)&SystemReflectionRuntimeParameterInfo::get_metadata_token,
-         get_metadata_token_invoker},
+         get_metadata_token_invoker_system_reflection_runtimeparameterinfo},
         {"System.Reflection.RuntimeParameterInfo::GetTypeModifiers(System.Type,System.Reflection.MemberInfo,System.Int32,System.Boolean)",
-         (vm::InternalCallFunction)&SystemReflectionRuntimeParameterInfo::get_type_modifiers, get_type_modifiers_invoker},
+         (vm::InternalCallFunction)&SystemReflectionRuntimeParameterInfo::get_type_modifiers, runtimeparameterinfo_get_type_modifiers_invoker},
     };
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

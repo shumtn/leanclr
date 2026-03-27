@@ -3,14 +3,16 @@
 #include "gc/garbage_collector.h"
 #include "class.h"
 #include "field.h"
-#include "utf8/utf8.h"
+#include "3rd/utf8/utf8.h"
 #include <vector>
 #include <string>
 #include <cstring>
 #include "utils/hashset.h"
 #include "utils/hash_util.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 static metadata::RtClass* g_stringClass = nullptr;
@@ -23,7 +25,7 @@ struct RtStringHash
     size_t operator()(const RtString* s) const noexcept
     {
         const char* bytes = reinterpret_cast<const char*>(&s->first_char);
-        std::string_view v(bytes, static_cast<size_t>(s->length) * sizeof(uint16_t));
+        std::string_view v(bytes, static_cast<size_t>(s->length) * sizeof(Utf16Char));
         return std::hash<std::string_view>{}(v);
     }
 };
@@ -36,7 +38,7 @@ struct RtStringEqual
             return true;
         if (a->length != b->length)
             return false;
-        return std::memcmp(&a->first_char, &b->first_char, static_cast<size_t>(a->length) * sizeof(uint16_t)) == 0;
+        return std::memcmp(&a->first_char, &b->first_char, static_cast<size_t>(a->length) * sizeof(Utf16Char)) == 0;
     }
 };
 } // namespace
@@ -61,7 +63,7 @@ static RtResultVoid init_static_empty_string(metadata::RtClass* stringClass)
     if (!emptyField)
     {
         assert(false && "String.Empty field not found");
-        RET_ERR(RtErr::ExecutionEngine);
+        RET_ASSERT_ERR(RtErr::ExecutionEngine);
     }
     assert(*g_emptyString_ptr);
     assert((*g_emptyString_ptr)->length == 0);
@@ -76,14 +78,19 @@ static RtResultVoid init_redirected_ctor_method(metadata::RtClass* stringClass)
     for (uint16_t i = 0; i < stringClass->method_count; ++i)
     {
         const metadata::RtMethodInfo* method = stringClass->methods[i];
-        if (std::strcmp(method->name, "Ctor") == 0 && method->parameter_count == 4)
+#if LEANCLR_NETFRAMEWORK_4_X
+        const char* redirected_ctor_method_name = "Ctor";
+#else
+        const char* redirected_ctor_method_name = "CreateString";
+#endif
+        if (std::strcmp(method->name, redirected_ctor_method_name) == 0 && method->parameter_count == 4)
         {
             g_redirectedCtorMethod = method;
             RET_VOID_OK();
         }
     }
     assert(false && "String directcted ctor method not found");
-    RET_ERR(RtErr::ExecutionEngine);
+    RET_ASSERT_ERR(RtErr::ExecutionEngine);
 }
 
 RtResultVoid String::initialize()
@@ -108,18 +115,18 @@ const metadata::RtMethodInfo* String::get_redirected_ctor_method()
     return g_redirectedCtorMethod;
 }
 
-RtString* String::create_string_from_utf16chars(const uint16_t* str, int32_t length)
+RtString* String::create_string_from_utf16chars(const Utf16Char* str, int32_t length)
 {
     RtString* newString = fast_allocate_string(length);
 
-    std::memcpy(&newString->first_char, str, length * sizeof(uint16_t));
+    std::memcpy(&newString->first_char, str, static_cast<size_t>(length) * sizeof(Utf16Char));
     return newString;
 }
 
 RtString* String::create_string_from_utf8chars(const char* str, int32_t length)
 {
     // First, convert UTF-8 to UTF-16 and count characters
-    utils::Vector<uint16_t> utf16_buffer;
+    utils::Vector<Utf16Char> utf16_buffer;
     utf16_buffer.reserve(static_cast<size_t>(length)); // Reserve space (UTF-16 could be shorter or longer)
 
     const char* start = str;
@@ -151,13 +158,19 @@ int32_t String::get_hash_code(RtString* str)
     return hash;
 }
 
+int32_t String::get_string_allocation_size(int32_t length)
+{
+    const size_t bytes = sizeof(RtString) - OVER_SIZE_OF_STRING + sizeof(Utf16Char) /* extra one character*/ + static_cast<size_t>(length) * sizeof(Utf16Char);
+    return static_cast<int32_t>(bytes);
+}
+
 RtString* String::fast_allocate_string(int32_t length)
 {
     // String::GetLegacyNonRandomizedHashCode need zero terminated string, so we allocate one extra character.
     // TODO: can we optimize it out? we have redirected String::GetHashCode and String::GetLegacyNonRandomizedHashCode to
     // the intrinsic implementation which does not require zero-termination.
-    RtString* newString = (RtString*)gc::GarbageCollector::allocate_object_not_contains_references(
-        g_stringClass, sizeof(RtString) - OVER_SIZE_OF_STRING + sizeof(uint16_t) /* extra one character*/ + length * sizeof(uint16_t));
+    RtString* newString =
+        (RtString*)gc::GarbageCollector::allocate_object_not_contains_references(g_stringClass, static_cast<size_t>(get_string_allocation_size(length)));
     newString->length = static_cast<int32_t>(length);
     return newString;
 }
@@ -180,4 +193,5 @@ bool String::is_interned_string(RtString* s)
     return g_internTable.find(s) != g_internTable.end();
 }
 
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

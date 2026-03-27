@@ -1,10 +1,13 @@
 
 
 #include <cstdlib>
+#include <csignal>
+#include <cstdio>
+#include <exception>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <vector>
-#include <filesystem>
 
 #include "alloc/general_allocation.h"
 #include "metadata/pe_image_reader.h"
@@ -22,12 +25,30 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <direct.h>
+#else
+#include <unistd.h>
 #endif
 
 using namespace leanclr;
 
 // Global library search directories
 static std::vector<std::string> g_lib_dirs;
+
+static std::string get_current_working_directory()
+{
+    char buffer[4096];
+#ifdef _WIN32
+    if (_getcwd(buffer, sizeof(buffer)) == nullptr)
+#else
+    if (getcwd(buffer, sizeof(buffer)) == nullptr)
+#endif
+    {
+        return ".";
+    }
+    return std::string(buffer);
+}
+
 static RtResult<vm::FileData> assembly_file_loader(const char* assembly_name, const char* ext)
 {
     for (const auto& dir : g_lib_dirs)
@@ -64,7 +85,7 @@ static RtResult<vm::FileData> assembly_file_loader(const char* assembly_name, co
 static void setup_default_lib_dirs()
 {
     g_lib_dirs.push_back("."); // Current directory
-    std::string cur_dir = std::filesystem::current_path().string();
+    std::string cur_dir = get_current_working_directory();
 
     size_t pos = cur_dir.find("src");
     if (pos != std::string::npos)
@@ -251,6 +272,68 @@ RtResultVoid init_unittest_class(metadata::RtModuleDef* mod)
 static size_t g_failed_test_methods = 0;
 static size_t g_passed_test_methods = 0;
 static size_t g_skipped_test_methods = 0;
+static std::string g_current_phase = "startup";
+static std::string g_current_test = "(none)";
+
+static void set_current_test_context(const char* phase, const metadata::RtClass* klass, const metadata::RtMethodInfo* method)
+{
+    g_current_phase = phase ? phase : "unknown";
+    if (klass && method)
+    {
+        g_current_test = std::string(klass->namespaze) + "." + klass->name + "::" + method->name;
+    }
+    else
+    {
+        g_current_test = "(none)";
+    }
+}
+
+static void print_crash_context(const char* reason)
+{
+    std::cerr << "\n[FATAL] Process terminated unexpectedly." << std::endl;
+    if (reason)
+    {
+        std::cerr << "[FATAL] Reason: " << reason << std::endl;
+    }
+    std::cerr << "[FATAL] Phase: " << g_current_phase << std::endl;
+    std::cerr << "[FATAL] Current test: " << g_current_test << std::endl;
+    std::cerr.flush();
+}
+
+static void on_terminate()
+{
+    print_crash_context("std::terminate");
+    std::_Exit(134);
+}
+
+static void on_signal(int sig)
+{
+    print_crash_context("signal");
+    std::_Exit(128 + sig);
+}
+
+#ifdef _WIN32
+static LONG WINAPI windows_unhandled_exception_filter(EXCEPTION_POINTERS* exception_info)
+{
+    char reason[128] = {0};
+    unsigned long code = exception_info && exception_info->ExceptionRecord ? exception_info->ExceptionRecord->ExceptionCode : 0;
+    std::snprintf(reason, sizeof(reason), "Windows exception 0x%08lX", code);
+    print_crash_context(reason);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+
+static void install_crash_handlers()
+{
+    std::set_terminate(on_terminate);
+    std::signal(SIGABRT, on_signal);
+    std::signal(SIGSEGV, on_signal);
+    std::signal(SIGILL, on_signal);
+    std::signal(SIGFPE, on_signal);
+#ifdef _WIN32
+    SetUnhandledExceptionFilter(windows_unhandled_exception_filter);
+#endif
+}
 
 RtResultVoid run_tests(metadata::RtModuleDef* mod)
 {
@@ -284,6 +367,7 @@ RtResultVoid run_tests(metadata::RtModuleDef* mod)
                 // std::cout << "  Skipping..." << std::endl;
                 continue;
             }
+            set_current_test_context("run_tests", klass, method);
             auto ret1 = vm::Object::new_object(klass);
             if (ret1.is_err())
             {
@@ -312,6 +396,8 @@ RtResultVoid run_tests(metadata::RtModuleDef* mod)
 
 int main()
 {
+    install_crash_handlers();
+
 #ifdef _WIN32
     // 设置 Windows 控制台为 UTF-8 编码
     SetConsoleOutputCP(CP_UTF8);

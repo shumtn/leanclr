@@ -2,22 +2,24 @@
 
 #include "platform/architecture.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResult<vm::RtString*> SystemRuntimeInteropServicesRuntimeInformation::get_runtime_architecture()
+RtResult<vm::RtString*> SystemRuntimeInteropServicesRuntimeInformation::get_runtime_architecture() noexcept
 {
     RET_OK(os::Architecture::get_architecture_name());
 }
 
-RtResult<vm::RtString*> SystemRuntimeInteropServicesRuntimeInformation::get_os_name()
+RtResult<vm::RtString*> SystemRuntimeInteropServicesRuntimeInformation::get_os_name() noexcept
 {
     RET_OK(os::Architecture::get_os_name());
 }
 
 /// @icall: System.Runtime.InteropServices.RuntimeInformation::GetRuntimeArchitecture
 static RtResultVoid get_runtime_architecture_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                     const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                     const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -29,7 +31,7 @@ static RtResultVoid get_runtime_architecture_invoker(metadata::RtManagedMethodPo
 
 /// @icall: System.Runtime.InteropServices.RuntimeInformation::GetOSName
 static RtResultVoid get_os_name_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
-                                        interp::RtStackObject* ret)
+                                        interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -39,7 +41,7 @@ static RtResultVoid get_os_name_invoker(metadata::RtManagedMethodPointer methodP
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemRuntimeInteropServicesRuntimeInformation::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemRuntimeInteropServicesRuntimeInformation::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Runtime.InteropServices.RuntimeInformation::GetRuntimeArchitecture",
@@ -50,4 +52,5 @@ utils::Span<vm::InternalCallEntry> SystemRuntimeInteropServicesRuntimeInformatio
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

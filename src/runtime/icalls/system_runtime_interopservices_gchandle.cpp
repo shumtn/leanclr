@@ -1,40 +1,42 @@
 #include "system_runtime_interopservices_gchandle.h"
 #include "vm/gchandle.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResult<bool> SystemRuntimeInteropServicesGCHandle::check_current_domain(void* handle)
+RtResult<bool> SystemRuntimeInteropServicesGCHandle::check_current_domain(void* handle) noexcept
 {
     (void)handle;
     // In WebAssembly, there is only a single AppDomain.
     RET_OK(true);
 }
 
-RtResult<vm::RtObject*> SystemRuntimeInteropServicesGCHandle::get_target(void* handle)
+RtResult<vm::RtObject*> SystemRuntimeInteropServicesGCHandle::get_target(void* handle) noexcept
 {
     RET_OK(vm::GCHandle::get_target(handle));
 }
 
-RtResult<void*> SystemRuntimeInteropServicesGCHandle::get_target_handle(vm::RtObject* obj, void* handle, int32_t handle_type)
+RtResult<void*> SystemRuntimeInteropServicesGCHandle::get_target_handle(vm::RtObject* obj, void* handle, int32_t handle_type) noexcept
 {
     RET_OK(vm::GCHandle::get_target_handle(obj, handle, handle_type));
 }
 
-RtResultVoid SystemRuntimeInteropServicesGCHandle::free_handle(void* handle)
+RtResultVoid SystemRuntimeInteropServicesGCHandle::free_handle(void* handle) noexcept
 {
     vm::GCHandle::free_handle(handle);
     RET_VOID_OK();
 }
 
-RtResult<void*> SystemRuntimeInteropServicesGCHandle::get_addr_of_pinned_object(void* handle)
+RtResult<void*> SystemRuntimeInteropServicesGCHandle::get_addr_of_pinned_object(void* handle) noexcept
 {
     RET_OK(vm::GCHandle::get_addr_of_pinned_object(handle));
 }
 
 /// @icall: System.Runtime.InteropServices.GCHandle::CheckCurrentDomain(System.IntPtr)
 static RtResultVoid check_current_domain_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                 const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                 const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -46,7 +48,7 @@ static RtResultVoid check_current_domain_invoker(metadata::RtManagedMethodPointe
 
 /// @icall: System.Runtime.InteropServices.GCHandle::GetTarget(System.IntPtr)
 static RtResultVoid get_target_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
-                                       interp::RtStackObject* ret)
+                                       interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -58,7 +60,7 @@ static RtResultVoid get_target_invoker(metadata::RtManagedMethodPointer methodPt
 
 /// @icall: System.Runtime.InteropServices.GCHandle::GetTargetHandle(System.Object,System.IntPtr,System.Runtime.InteropServices.GCHandleType)
 static RtResultVoid get_target_handle_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                              const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                              const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -72,7 +74,7 @@ static RtResultVoid get_target_handle_invoker(metadata::RtManagedMethodPointer m
 
 /// @icall: System.Runtime.InteropServices.GCHandle::FreeHandle(System.IntPtr)
 static RtResultVoid free_handle_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
-                                        interp::RtStackObject* ret)
+                                        interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -84,7 +86,7 @@ static RtResultVoid free_handle_invoker(metadata::RtManagedMethodPointer methodP
 
 /// @icall: System.Runtime.InteropServices.GCHandle::GetAddrOfPinnedObject(System.IntPtr)
 static RtResultVoid get_addr_of_pinned_object_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                      const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                      const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -94,7 +96,7 @@ static RtResultVoid get_addr_of_pinned_object_invoker(metadata::RtManagedMethodP
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemRuntimeInteropServicesGCHandle::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemRuntimeInteropServicesGCHandle::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Runtime.InteropServices.GCHandle::CheckCurrentDomain(System.IntPtr)",
@@ -111,4 +113,5 @@ utils::Span<vm::InternalCallEntry> SystemRuntimeInteropServicesGCHandle::get_int
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

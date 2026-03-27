@@ -8,9 +8,10 @@
 #include "system_object.h"
 #include "system_reflection_runtimemethodinfo.h"
 #include "system_runtime_compilerservices_runtimehelpers.h"
+#include "system_diagnostics_stopwatch.h"
 #include "system_runtimetype.h"
 #include "system_runtimetypehandle.h"
-#include "system_string.h"
+#include "icalls/system_string.h"
 #include "system_globalization_cultureinfo.h"
 #include "system_globalization_compareinfo.h"
 #include "system_threading_interlocked.h"
@@ -59,18 +60,22 @@
 #include "system_datetime.h"
 #include "system_math.h"
 #include "system_mathf.h"
+#include "system_io_path.h"
+#include "system_io_monoio.h"
 #include "interop.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 template <typename T>
-static void Append(utils::Vector<T>& entries, const utils::Span<T>& sub_entries)
+static void Append(utils::Vector<T>& entries, const utils::Span<T>& sub_entries) noexcept
 {
     entries.push_range(sub_entries.begin(), sub_entries.size());
 }
 
-void InternalCallStubs::get_internal_call_entries(utils::Vector<vm::InternalCallEntry>& entries)
+void InternalCallStubs::get_internal_call_entries(utils::Vector<vm::InternalCallEntry>& entries) noexcept
 {
     entries.reserve(1000);
     // append all internal call entries here
@@ -82,6 +87,7 @@ void InternalCallStubs::get_internal_call_entries(utils::Vector<vm::InternalCall
     Append(entries, SystemObject::get_internal_call_entries());
     Append(entries, SystemReflectionRuntimeMethodInfo::get_internal_call_entries());
     Append(entries, SystemRuntimeCompilerServicesRuntimeHelpers::get_internal_call_entries());
+    Append(entries, SystemDiagnosticsStopwatch::get_internal_call_entries());
     Append(entries, SystemRuntimeType::get_internal_call_entries());
     Append(entries, SystemRuntimeTypeHandle::get_internal_call_entries());
     Append(entries, SystemString::get_internal_call_entries());
@@ -131,16 +137,19 @@ void InternalCallStubs::get_internal_call_entries(utils::Vector<vm::InternalCall
     Append(entries, SystemDateTime::get_internal_call_entries());
     Append(entries, SystemMath::get_internal_call_entries());
     Append(entries, SystemMathF::get_internal_call_entries());
+    Append(entries, SystemIOPath::get_internal_call_entries());
+    Append(entries, SystemIOMonoIO::get_internal_call_entries());
     Append(entries, SystemTextEncodingHelper::get_internal_call_entries());
     Append(entries, SystemSecurityCryptographyRNGCryptoServiceProvider::get_internal_call_entries());
     Append(entries, SystemSecuritySecurityManager::get_internal_call_entries());
 }
 
-void InternalCallStubs::get_newobj_internal_call_entries(utils::Vector<vm::NewobjInternalCallEntry>& entries)
+void InternalCallStubs::get_newobj_internal_call_entries(utils::Vector<vm::NewobjInternalCallEntry>& entries) noexcept
 {
     entries.reserve(200);
     // append all newobj internal call entries here
     Append(entries, SystemString::get_newobj_internal_call_entries());
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

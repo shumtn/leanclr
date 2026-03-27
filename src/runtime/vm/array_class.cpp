@@ -12,7 +12,9 @@
 #include "generic_method.h"
 #include "shim.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 using namespace leanclr::utils;
 using namespace leanclr::metadata;
@@ -54,7 +56,7 @@ static const char* make_array_name(const char* ele_class_name, uint8_t rank, boo
     return sb.dup_to_zero_end_cstr();
 }
 
-static void setup_cast_class(RtClass* klass)
+static void setup_array_cast_class(RtClass* klass)
 {
     if (Class::is_array_or_szarray(klass->element_class))
     {
@@ -67,7 +69,7 @@ static void setup_cast_class(RtClass* klass)
 }
 
 // Common setup for array classes
-static void setup_array_class_common(RtClass* array_class, RtClass* ele_class)
+static void setup_array_class_common(RtClass* array_class, const metadata::RtClass* ele_class)
 {
     const CorLibTypes& corlib = Class::get_corlib_types();
 
@@ -76,7 +78,7 @@ static void setup_array_class_common(RtClass* array_class, RtClass* ele_class)
     array_class->namespaze = ele_class->namespaze;
     array_class->element_class = ele_class;
     // Array classes don't need cast_class setup (it stays nullptr)
-    setup_cast_class(array_class);
+    setup_array_cast_class(array_class);
 
     array_class->flags = (uint32_t)RtTypeAttribute::Public | (uint32_t)RtTypeAttribute::Sealed | (uint32_t)RtTypeAttribute::Serializable;
     array_class->extra_flags = (uint32_t)RtClassExtraAttribute::ArrayOrSZArray | (uint32_t)RtClassExtraAttribute::ReferenceType;
@@ -218,7 +220,7 @@ RtResult<RtClass*> ArrayClass::get_array_class_from_element_type(const RtTypeSig
 }
 
 // Get array class from element class
-RtResult<RtClass*> ArrayClass::get_array_class_from_element_klass(RtClass* ele_klass, uint8_t rank)
+RtResult<RtClass*> ArrayClass::get_array_class_from_element_klass(const metadata::RtClass* ele_klass, uint8_t rank)
 {
     if (rank > metadata::RT_MAX_ARRAY_RANK)
         RET_ERR(RtErr::IndexOutOfRange);
@@ -254,7 +256,7 @@ RtResult<RtClass*> ArrayClass::get_szarray_class_from_element_typesig(const RtTy
 }
 
 // Get single-dimensional zero-lower-bound array class from element class
-RtResult<RtClass*> ArrayClass::get_szarray_class_from_element_class(RtClass* ele_class)
+RtResult<RtClass*> ArrayClass::get_szarray_class_from_element_class(const metadata::RtClass* ele_class)
 {
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(metadata::RtTypeSigByValRef, types,
                                              MetadataCache::get_pooled_szarray_typesigs_by_element_typesig(ele_class->by_val));
@@ -282,6 +284,15 @@ RtResult<RtClass*> ArrayClass::get_szarray_class_from_element_class(RtClass* ele
     RET_OK(array_class);
 }
 
+const metadata::RtClass* ArrayClass::get_array_variance_reduce_type(const metadata::RtClass* klass)
+{
+    if (Class::is_array_or_szarray(klass))
+    {
+        return klass;
+    }
+    return klass->cast_class;
+}
+
 RtResultVoid ArrayClass::setup_interfaces(RtClass* klass)
 {
     // Only SZArray implement collection interfaces
@@ -299,7 +310,7 @@ RtResultVoid ArrayClass::setup_interfaces(RtClass* klass)
     };
 
     size_t interface_count = 5;
-    RtClass** interfaces = klass->image->get_mem_pool().calloc_any<RtClass*>(interface_count);
+    const RtClass** interfaces = klass->image->get_mem_pool().calloc_any<const RtClass*>(interface_count);
     for (size_t i = 0; i < interface_count; ++i)
     {
         uint32_t gid = Class::get_type_def_gid(to_inflate[i]);
@@ -316,7 +327,7 @@ RtResultVoid ArrayClass::setup_methods(RtClass* klass)
 {
     uint8_t rank = Class::get_rank(klass);
     if (rank == 0)
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
 
     uint16_t method_count = 3 + (rank == 1 ? 1 : 2);
 
@@ -403,7 +414,7 @@ RtResultVoid ArrayClass::setup_vtables(metadata::RtClass* klass)
     }
 
     // Single-dimensional arrays: extend vtable with collection interfaces
-    metadata::RtClass* parent = klass->parent;
+    const metadata::RtClass* parent = klass->parent;
     size_t total_vtable_count = parent->vtable_count;
 
     // Build interface vtable offsets (parent offsets + new ones)
@@ -414,7 +425,7 @@ RtResultVoid ArrayClass::setup_vtables(metadata::RtClass* klass)
 
     for (size_t i = 0; i < klass->interface_count; ++i)
     {
-        metadata::RtClass* iface = klass->interfaces[i];
+        const metadata::RtClass* iface = klass->interfaces[i];
         new_offsets.push_back(metadata::RtInterfaceOffset{iface, static_cast<uint16_t>(total_vtable_count)});
         total_vtable_count += iface->vtable_count;
     }
@@ -440,7 +451,7 @@ RtResultVoid ArrayClass::setup_vtables(metadata::RtClass* klass)
     size_t current_slot = parent->vtable_count;
     for (size_t i = 0; i < klass->interface_count; ++i)
     {
-        metadata::RtClass* iface = klass->interfaces[i];
+        const metadata::RtClass* iface = klass->interfaces[i];
         std::memcpy(new_vtables + current_slot, iface->vtable, iface->vtable_count * sizeof(metadata::RtVirtualInvokeData));
 
         const char* iface_name = iface->name;
@@ -456,10 +467,10 @@ RtResultVoid ArrayClass::setup_vtables(metadata::RtClass* klass)
         else if (std::strcmp(iface_name, iface_ireadonlylist) == 0)
             method_list = &g_ireadonlyListGenericMethods;
         else
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
 
         if (iface->vtable_count != method_list->size())
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
 
         for (size_t j = 0; j < iface->vtable_count; ++j)
         {
@@ -478,7 +489,7 @@ RtResultVoid ArrayClass::setup_vtables(metadata::RtClass* klass)
                 }
             }
             if (!found)
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         current_slot += iface->vtable_count;
     }
@@ -494,4 +505,13 @@ RtResultVoid ArrayClass::initialize()
     RET_VOID_OK();
 }
 
-} // namespace leanclr::vm
+void ArrayClass::walk_array_classes(metadata::ClassWalkCallback callback, void* userData)
+{
+    for (auto& entry : g_arrayClassMap)
+    {
+        callback(entry.second, userData);
+    }
+}
+
+} // namespace vm
+} // namespace leanclr

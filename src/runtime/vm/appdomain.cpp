@@ -7,8 +7,11 @@
 #include "utils/hashmap.h"
 #include "utils/string_util.h"
 #include "metadata/module_def.h"
+#include "settings.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 namespace
@@ -49,7 +52,9 @@ RtResult<RtAppDomain*> AppDomain::init_default_app_domain()
     auto appdomain_setup = appdomain_setup_res.unwrap();
 
     mono_app_domain->domain_id = 1;
-    mono_app_domain->friendly_name = utils::StringUtil::strdup("LeanCLR-Domain");
+    const char* domain_name = Settings::get_domain_name();
+    // we has dup string in Settings, so we don't need to dup it here
+    mono_app_domain->friendly_name = domain_name != nullptr ? domain_name : utils::StringUtil::strdup("LeanCLR-Domain");
     mono_app_domain->appdomain = default_appdomain;
 
     auto ephemeron_res = Object::new_object(corlib_types.cls_object);
@@ -128,7 +133,7 @@ const char* AppDomain::get_friendly_name()
 
 RtObject* AppDomain::get_domain_data(RtString* name)
 {
-    utils::Utf16StrWithLen key(String::get_chars_ptr(name), String::get_length(name));
+    utils::Utf16StrWithLen key(String::get_chars_ptr(name), static_cast<size_t>(String::get_length(name)));
     auto it = g_appdomain_private_data.find(key);
     if (it != g_appdomain_private_data.end())
     {
@@ -139,7 +144,7 @@ RtObject* AppDomain::get_domain_data(RtString* name)
 
 void AppDomain::set_domain_data(RtString* name, RtObject* data)
 {
-    utils::Utf16StrWithLen key(String::get_chars_ptr(name), String::get_length(name));
+    utils::Utf16StrWithLen key(String::get_chars_ptr(name), static_cast<size_t>(String::get_length(name)));
     auto it = g_appdomain_private_data.find(key);
     ;
     if (it != g_appdomain_private_data.end())
@@ -148,7 +153,7 @@ void AppDomain::set_domain_data(RtString* name, RtObject* data)
         return;
     }
 
-    const Utf16Char* new_chars = utils::StringUtil::strdup_utf16_without_null_terminator(key.str, static_cast<int32_t>(key.length));
+    const Utf16Char* new_chars = utils::StringUtil::strdup_utf16_without_null_terminator(key.str, key.length);
     key.str = new_chars;
     g_appdomain_private_data.insert({key, data});
 }
@@ -159,8 +164,10 @@ int32_t AppDomain::get_appdomain_id()
     return g_default_mono_domain->domain_id;
 }
 
-utils::Span<metadata::RtModuleDef*> AppDomain::get_modules()
+utils::Span<metadata::RtModuleDef*> AppDomain::get_modules(RtAppDomain* this_domain)
 {
+    (void)this_domain;
     return metadata::RtModuleDef::get_registered_modules();
 }
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

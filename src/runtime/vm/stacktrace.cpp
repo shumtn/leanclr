@@ -9,7 +9,9 @@
 #include "interp/machine_state.h"
 #include "metadata/module_def.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 static bool is_frame_should_be_counted_to_stacktrace(const interp::InterpFrame* frame)
@@ -50,7 +52,7 @@ RtResultVoid StackTrace::setup_trace_ips(RtException* ex)
 
         const interp::InterpFrame* frame = trace_frames[i];
         UNWRAP_OR_RET_ERR_ON_FAIL(stackframe->method, Reflection::get_method_reflection_object(frame->method, frame->method->parent));
-        stackframe->method_index = Method::get_method_index_in_class(frame->method);
+        stackframe->method_index = static_cast<uint32_t>(Method::get_method_index_in_class(frame->method));
         metadata::PdbImage* pdb_image = frame->method->parent->image->get_pdb_image();
         if (pdb_image)
         {
@@ -67,7 +69,7 @@ RtResultVoid StackTrace::setup_trace_ips(RtException* ex)
             stackframe->column = 0;
         }
         stackframe->native_offset = -1;
-        Array::set_array_data_at<RtObject*>(trace_ips, frame_count - 1 - i, stackframe_obj);
+        Array::set_array_data_at<RtObject*>(trace_ips, static_cast<int32_t>(frame_count - 1 - i), stackframe_obj);
     }
     ex->trace_ips = trace_ips;
 
@@ -81,12 +83,13 @@ RtResult<bool> StackTrace::get_frame_info(int32_t skip, bool need_file_info, RtR
     auto frames = ms.get_active_frames();
     size_t frame_count = frames.size();
     skip -= 1; // Skip method from StackFrame
-    if (skip >= static_cast<int32_t>(frame_count))
+    if (skip < 0 || skip >= static_cast<int32_t>(frame_count))
     {
         RET_OK(false);
     }
 
-    const interp::InterpFrame* frame = &frames[frame_count - 1 - skip];
+    const size_t frame_index = frame_count - 1U - static_cast<size_t>(skip);
+    const interp::InterpFrame* frame = &frames[frame_index];
     UNWRAP_OR_RET_ERR_ON_FAIL(*method, Reflection::get_method_reflection_object(frame->method, frame->method->parent));
 
     int32_t ir_offset = static_cast<int32_t>(frame->ip - frame->method->interp_data->codes);
@@ -143,4 +146,5 @@ RtResult<RtArray*> StackTrace::get_stack_trace(RtException* ex, int32_t skip_fra
 
     RET_OK(result_array);
 }
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
-#include <optional>
+#include "core/stl_compat.h"
 #include <utility>
 
 #include "utils/mem_op.h"
@@ -10,12 +10,17 @@
 #include "cli_metadata.h"
 #include "utils/binary_reader.h"
 
-namespace leanclr::utils
+namespace leanclr
+{
+namespace utils
 {
 class MemPool;
 }
+} // namespace leanclr
 
-namespace leanclr::metadata
+namespace leanclr
+{
+namespace metadata
 {
 
 struct CliSection
@@ -141,7 +146,7 @@ class CliImage
     void set_sections(const CliSection* sections, uint32_t section_count)
     {
         this->sections = sections;
-        this->section_count = section_count;
+        this->section_count = static_cast<uint16_t>(section_count);
     }
 
     uint32_t get_section_count() const
@@ -321,4 +326,5 @@ class CliImage
     bool blob_heap_size_4_byte;
 };
 
-} // namespace leanclr::metadata
+} // namespace metadata
+} // namespace leanclr

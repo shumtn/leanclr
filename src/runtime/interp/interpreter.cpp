@@ -18,19 +18,21 @@
 #include "vm/rt_exception.h"
 #include "vm/enum.h"
 
-namespace leanclr::interp
+namespace leanclr
+{
+namespace interp
 {
 
 static RtResult<const RtInterpMethodInfo*> transform(const metadata::RtMethodInfo* method)
 {
-    metadata::RtClass* klass = method->parent;
+    const metadata::RtClass* klass = method->parent;
     metadata::RtModuleDef* mod = !vm::Class::is_array_or_szarray(klass) ? klass->image : klass->parent->image;
     auto retMethodBody = mod->read_method_body(method->token);
     RET_ERR_ON_FAIL(retMethodBody);
     auto& optMethodBody = retMethodBody.unwrap();
     if (!optMethodBody)
     {
-        RET_ERR(RtErr::ExecutionEngine);
+        RET_ASSERT_ERR(RtErr::ExecutionEngine);
     }
 
     metadata::RtMethodBody& methodBody = optMethodBody.value();
@@ -47,7 +49,7 @@ static RtResult<const RtInterpMethodInfo*> transform(const metadata::RtMethodInf
 RtResult<const RtInterpMethodInfo*> Interpreter::init_interpreter_method(const metadata::RtMethodInfo* method)
 {
     assert(!method->interp_data);
-    RET_ERR_ON_FAIL(vm::Class::initialize_all(method->parent));
+    RET_ERR_ON_FAIL(vm::Class::initialize_all(const_cast<metadata::RtClass*>(method->parent)));
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtInterpMethodInfo*, interp_method, transform(method));
     const_cast<metadata::RtMethodInfo*>(method)->interp_data = interp_method;
     RET_OK(interp_method);
@@ -435,7 +437,7 @@ vm::RtException* get_exception_in_last_throw_flow(InterpFrame* frame, uint32_t i
 template <typename T>
 T* get_static_field_address(const metadata::RtFieldInfo* field)
 {
-    metadata::RtClass* klass = field->parent;
+    const metadata::RtClass* klass = field->parent;
     return reinterpret_cast<T*>(klass->static_fields_data + field->offset);
 }
 
@@ -2509,9 +2511,9 @@ method_start:
                 {
                     RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                 }
-                metadata::RtClass* arr_klass = array->klass;
-                metadata::RtClass* element_klass = vm::Class::get_array_element_class(arr_klass);
-                metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
+                const metadata::RtClass* arr_klass = array->klass;
+                const metadata::RtClass* element_klass = vm::Class::get_array_element_class(arr_klass);
+                const metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
                 if (!vm::Class::is_pointer_element_compatible_with(element_klass, check_klass))
                 {
                     RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
@@ -2703,7 +2705,7 @@ method_start:
                     RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                 }
                 vm::RtObject* value = vm::Array::get_array_data_at<vm::RtObject*>(array, index);
-                metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
+                const metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
                 if (value && !vm::Class::is_assignable_from(value->klass, check_klass))
                 {
                     RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
@@ -2723,12 +2725,12 @@ method_start:
                 {
                     RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                 }
-                metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
-                metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
-                if (!vm::Class::is_pointer_element_compatible_with(ele_klass, check_klass))
-                {
-                    RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
-                }
+                // const metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
+                // const metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
+                // if (!vm::Class::is_pointer_element_compatible_with(ele_klass, check_klass))
+                // {
+                //     RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
+                // }
                 assert(ir->ele_size == vm::Array::get_array_element_size(array));
                 const void* src_addr = vm::Array::get_array_element_address_with_size_as_ptr_void(array, index, ir->ele_size);
                 RtStackObject* dst = eval_stack_base + ir->dst;
@@ -2868,7 +2870,7 @@ method_start:
                     RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                 }
                 vm::RtObject* value = get_stack_value_at<vm::RtObject*>(eval_stack_base, ir->value);
-                metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
+                const metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
                 if (value && !vm::Class::is_assignable_from(value->klass, ele_klass))
                 {
                     RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
@@ -2889,7 +2891,7 @@ method_start:
                     RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                 }
                 vm::RtObject* value = get_stack_value_at<vm::RtObject*>(eval_stack_base, ir->value);
-                metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
+                const metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
                 if (value && !vm::Class::is_assignable_from(value->klass, ele_klass))
                 {
                     RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
@@ -2909,8 +2911,8 @@ method_start:
                 {
                     RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                 }
-                metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
-                metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
+                const metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
+                const metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
                 if (!vm::Class::is_pointer_element_compatible_with(ele_klass, check_klass))
                 {
                     RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
@@ -3342,7 +3344,8 @@ method_start:
                 {
                     ip = reinterpret_cast<const uint8_t*>(ir + 1);
                     RtStackObject* frame_base = eval_stack_base + ir->frame_base;
-                    HANDLE_RAISE_RUNTIME_ERROR_VOID(actual_method->virtual_invoke_method_ptr(actual_method->method_ptr, actual_method, frame_base, frame_base));
+                    HANDLE_RAISE_RUNTIME_ERROR_VOID(CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(actual_method->virtual_invoke_method_ptr)(
+                        actual_method->method_ptr, actual_method, frame_base, frame_base));
                 }
             }
             LEANCLR_CASE_END_LITE0()
@@ -3445,7 +3448,7 @@ method_start:
             {
                 const auto* ir = reinterpret_cast<const ll::NewObjInterpShort*>(ip);
                 const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
-                metadata::RtClass* klass = ctor->parent;
+                const metadata::RtClass* klass = ctor->parent;
                 TRY_RUN_CLASS_STATIC_CCTOR(klass);
                 HANDLE_RAISE_RUNTIME_ERROR(vm::RtObject*, obj, vm::Object::new_object(klass));
                 RtStackObject* frame_base = eval_stack_base + ir->frame_base;
@@ -3458,7 +3461,7 @@ method_start:
             {
                 const auto* ir = reinterpret_cast<const ll::NewValueTypeInterpShort*>(ip);
                 const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
-                metadata::RtClass* klass = ctor->parent;
+                const metadata::RtClass* klass = ctor->parent;
                 RtStackObject* original_frame_base = eval_stack_base + ir->frame_base;
                 const size_t value_stack_objects = InterpDefs::get_stack_object_size_by_byte_size(klass->instance_size_without_header);
                 RtStackObject* final_frame_base = original_frame_base + value_stack_objects;
@@ -3489,27 +3492,27 @@ method_start:
             LEANCLR_CASE_BEGIN0(NewObjAotShort)
             {
                 const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
-                metadata::RtClass* klass = ctor->parent;
+                const metadata::RtClass* klass = ctor->parent;
                 TRY_RUN_CLASS_STATIC_CCTOR(klass);
                 HANDLE_RAISE_RUNTIME_ERROR(vm::RtObject*, obj, vm::Object::new_object(klass));
                 RtStackObject* frame_base = eval_stack_base + ir->frame_base;
                 std::memmove(frame_base + 1, frame_base, static_cast<size_t>(ir->total_params_stack_object_size) * sizeof(RtStackObject));
                 frame_base->obj = obj;
-                metadata::AotInvoker invoker = ctor->invoke_method_ptr;
+                auto invoker = CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(ctor->invoke_method_ptr);
                 HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(ctor->method_ptr, ctor, frame_base, frame_base));
             }
             LEANCLR_CASE_END0()
             LEANCLR_CASE_BEGIN0(NewValueTypeAotShort)
             {
                 const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
-                metadata::RtClass* klass = ctor->parent;
+                const metadata::RtClass* klass = ctor->parent;
                 RtStackObject* original_frame_base = eval_stack_base + ir->frame_base;
                 const size_t value_stack_objects = InterpDefs::get_stack_object_size_by_byte_size(klass->instance_size_without_header);
                 RtStackObject* final_frame_base = original_frame_base + value_stack_objects;
                 std::memmove(final_frame_base + 1, original_frame_base, static_cast<size_t>(ir->total_params_stack_object_size) * sizeof(RtStackObject));
                 final_frame_base->ptr = original_frame_base;
                 std::memset(original_frame_base, 0, value_stack_objects * sizeof(RtStackObject));
-                metadata::AotInvoker invoker = ctor->invoke_method_ptr;
+                auto invoker = CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(ctor->invoke_method_ptr);
                 HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(ctor->method_ptr, ctor, final_frame_base, final_frame_base));
             }
             LEANCLR_CASE_END0()
@@ -5301,9 +5304,9 @@ method_start:
                         {
                             RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                         }
-                        metadata::RtClass* arr_klass = array->klass;
-                        metadata::RtClass* element_klass = vm::Class::get_array_element_class(arr_klass);
-                        metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
+                        const metadata::RtClass* arr_klass = array->klass;
+                        const metadata::RtClass* element_klass = vm::Class::get_array_element_class(arr_klass);
+                        const metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
                         if (!vm::Class::is_pointer_element_compatible_with(element_klass, check_klass))
                         {
                             RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
@@ -5495,7 +5498,7 @@ method_start:
                             RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                         }
                         vm::RtObject* value = vm::Array::get_array_data_at<vm::RtObject*>(array, index);
-                        metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
+                        const metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
                         if (value && !vm::Class::is_assignable_from(value->klass, check_klass))
                         {
                             RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
@@ -5515,12 +5518,12 @@ method_start:
                         {
                             RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                         }
-                        metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
-                        metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
-                        if (!vm::Class::is_pointer_element_compatible_with(ele_klass, check_klass))
-                        {
-                            RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
-                        }
+                        // const metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
+                        // const metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
+                        // if (!vm::Class::is_pointer_element_compatible_with(ele_klass, check_klass))
+                        // {
+                        //     RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
+                        // }
                         assert(ir->ele_size == vm::Array::get_array_element_size(array));
                         const void* src_addr = vm::Array::get_array_element_address_with_size_as_ptr_void(array, index, ir->ele_size);
                         RtStackObject* dst = eval_stack_base + ir->dst;
@@ -5660,7 +5663,7 @@ method_start:
                             RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                         }
                         vm::RtObject* value = get_stack_value_at<vm::RtObject*>(eval_stack_base, ir->value);
-                        metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
+                        const metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
                         if (value && !vm::Class::is_assignable_from(value->klass, ele_klass))
                         {
                             RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
@@ -5681,7 +5684,7 @@ method_start:
                             RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                         }
                         vm::RtObject* value = get_stack_value_at<vm::RtObject*>(eval_stack_base, ir->value);
-                        metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
+                        const metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
                         if (value && !vm::Class::is_assignable_from(value->klass, ele_klass))
                         {
                             RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
@@ -5701,8 +5704,8 @@ method_start:
                         {
                             RAISE_RUNTIME_ERROR(RtErr::IndexOutOfRange);
                         }
-                        metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
-                        metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
+                        const metadata::RtClass* ele_klass = vm::Array::get_array_element_class(array);
+                        const metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->ele_klass_idx);
                         if (!vm::Class::is_pointer_element_compatible_with(ele_klass, check_klass))
                         {
                             RAISE_RUNTIME_ERROR(RtErr::ArrayTypeMismatch);
@@ -5715,7 +5718,7 @@ method_start:
                     LEANCLR_CASE_END1()
                     LEANCLR_CASE_BEGIN1(MkRefAny)
                     {
-                        metadata::RtClass* klass = get_resolved_data<metadata::RtClass>(imi, ir->klass_idx);
+                        const metadata::RtClass* klass = get_resolved_data<metadata::RtClass>(imi, ir->klass_idx);
                         const void* src_addr = get_stack_value_at<const void*>(eval_stack_base, ir->addr);
                         vm::RtTypedReference* dst = get_ptr_stack_value_at<vm::RtTypedReference>(eval_stack_base, ir->dst);
                         dst->type_handle = klass->by_val;
@@ -5726,7 +5729,7 @@ method_start:
                     LEANCLR_CASE_BEGIN1(RefAnyVal)
                     {
                         vm::RtTypedReference* src = get_ptr_stack_value_at<vm::RtTypedReference>(eval_stack_base, ir->src);
-                        metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->klass_idx);
+                        const metadata::RtClass* check_klass = get_resolved_data<metadata::RtClass>(imi, ir->klass_idx);
                         if (src->klass != check_klass)
                         {
                             RAISE_RUNTIME_ERROR(RtErr::InvalidCast);
@@ -6195,8 +6198,8 @@ method_start:
                         {
                             ip = reinterpret_cast<const uint8_t*>(ir + 1);
                             RtStackObject* frame_base = eval_stack_base + ir->frame_base;
-                            HANDLE_RAISE_RUNTIME_ERROR_VOID(
-                                actual_method->virtual_invoke_method_ptr(actual_method->method_ptr, actual_method, frame_base, frame_base));
+                            HANDLE_RAISE_RUNTIME_ERROR_VOID(CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(actual_method->virtual_invoke_method_ptr)(
+                                actual_method->method_ptr, actual_method, frame_base, frame_base));
                         }
                     }
                     LEANCLR_CASE_END_LITE1()
@@ -6300,7 +6303,7 @@ method_start:
                     {
                         const auto* ir = reinterpret_cast<const ll::NewObjInterp*>(ip);
                         const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
-                        metadata::RtClass* klass = ctor->parent;
+                        const metadata::RtClass* klass = ctor->parent;
                         TRY_RUN_CLASS_STATIC_CCTOR(klass);
                         HANDLE_RAISE_RUNTIME_ERROR(vm::RtObject*, obj, vm::Object::new_object(klass));
                         RtStackObject* frame_base = eval_stack_base + ir->frame_base;
@@ -6313,7 +6316,7 @@ method_start:
                     {
                         const auto* ir = reinterpret_cast<const ll::NewValueTypeInterp*>(ip);
                         const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
-                        metadata::RtClass* klass = ctor->parent;
+                        const metadata::RtClass* klass = ctor->parent;
                         RtStackObject* original_frame_base = eval_stack_base + ir->frame_base;
                         const size_t value_stack_objects = InterpDefs::get_stack_object_size_by_byte_size(klass->instance_size_without_header);
                         RtStackObject* final_frame_base = original_frame_base + value_stack_objects;
@@ -6345,20 +6348,20 @@ method_start:
                     LEANCLR_CASE_BEGIN1(NewObjAot)
                     {
                         const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
-                        metadata::RtClass* klass = ctor->parent;
+                        const metadata::RtClass* klass = ctor->parent;
                         TRY_RUN_CLASS_STATIC_CCTOR(klass);
                         HANDLE_RAISE_RUNTIME_ERROR(vm::RtObject*, obj, vm::Object::new_object(klass));
                         RtStackObject* frame_base = eval_stack_base + ir->frame_base;
                         std::memmove(frame_base + 1, frame_base, static_cast<size_t>(ir->total_params_stack_object_size) * sizeof(RtStackObject));
                         frame_base->obj = obj;
-                        metadata::AotInvoker invoker = ctor->invoke_method_ptr;
+                        auto invoker = CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(ctor->invoke_method_ptr);
                         HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(ctor->method_ptr, ctor, frame_base, frame_base));
                     }
                     LEANCLR_CASE_END1()
                     LEANCLR_CASE_BEGIN1(NewValueTypeAot)
                     {
                         const metadata::RtMethodInfo* ctor = get_resolved_data<metadata::RtMethodInfo>(imi, ir->method_idx);
-                        metadata::RtClass* klass = ctor->parent;
+                        const metadata::RtClass* klass = ctor->parent;
                         RtStackObject* original_frame_base = eval_stack_base + ir->frame_base;
                         const size_t value_stack_objects = InterpDefs::get_stack_object_size_by_byte_size(klass->instance_size_without_header);
                         RtStackObject* final_frame_base = original_frame_base + value_stack_objects;
@@ -6366,7 +6369,7 @@ method_start:
                                      static_cast<size_t>(ir->total_params_stack_object_size) * sizeof(RtStackObject));
                         final_frame_base->ptr = original_frame_base;
                         std::memset(original_frame_base, 0, value_stack_objects * sizeof(RtStackObject));
-                        metadata::AotInvoker invoker = ctor->invoke_method_ptr;
+                        auto invoker = CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(ctor->invoke_method_ptr);
                         HANDLE_RAISE_RUNTIME_ERROR_VOID(invoker(ctor->method_ptr, ctor, final_frame_base, final_frame_base));
                     }
                     LEANCLR_CASE_END1()
@@ -7627,7 +7630,7 @@ method_start:
                         {
                             RAISE_RUNTIME_ERROR(RtErr::Overflow);
                         }
-                        set_stack_value_at<uint64_t>(eval_stack_base, ir->dst, cast_float_to_i64<float, uint64_t>(src));
+                        set_stack_value_at<uint64_t>(eval_stack_base, ir->dst, static_cast<uint64_t>(cast_float_to_i64<float, uint64_t>(src)));
                     }
                     LEANCLR_CASE_END3()
                     LEANCLR_CASE_BEGIN3(ConvOvfU8UnR8)
@@ -7637,7 +7640,7 @@ method_start:
                         {
                             RAISE_RUNTIME_ERROR(RtErr::Overflow);
                         }
-                        set_stack_value_at<uint64_t>(eval_stack_base, ir->dst, cast_float_to_i64<double, uint64_t>(src));
+                        set_stack_value_at<uint64_t>(eval_stack_base, ir->dst, static_cast<uint64_t>(cast_float_to_i64<double, uint64_t>(src)));
                     }
                     LEANCLR_CASE_END3()
                     LEANCLR_CASE_BEGIN3(InitObjI2Unaligned)
@@ -8146,4 +8149,5 @@ unwind_exception_handler:
 end_loop:
     RET_OK(ret);
 }
-} // namespace leanclr::interp
+} // namespace interp
+} // namespace leanclr

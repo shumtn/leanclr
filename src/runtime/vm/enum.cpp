@@ -5,7 +5,9 @@
 #include "object.h"
 #include "rt_string.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 int32_t Enum::get_enum_long_hash_code(int64_t value)
@@ -60,7 +62,7 @@ RtResult<std::tuple<bool, RtArray*, RtArray*>> Enum::get_enum_values_and_names(m
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const void*, rva_data, Field::get_field_const_data(field));
         if (rva_data == nullptr)
         {
-            RET_ERR(RtErr::ExecutionEngine);
+            RET_ASSERT_ERR(RtErr::ExecutionEngine);
         }
 
         uint64_t value = 0;
@@ -93,7 +95,7 @@ RtResult<std::tuple<bool, RtArray*, RtArray*>> Enum::get_enum_values_and_names(m
             value = *static_cast<const uint64_t*>(rva_data);
             break;
         default:
-            RET_ERR(RtErr::ExecutionEngine);
+            RET_ASSERT_ERR(RtErr::ExecutionEngine);
         }
 
         if (index > 0)
@@ -116,7 +118,7 @@ RtResult<std::tuple<bool, RtArray*, RtArray*>> Enum::get_enum_values_and_names(m
 
 RtResult<uint64_t> Enum::get_boxed_enum_data_as_unsigned_and_extended_to_u64(RtObject* obj)
 {
-    metadata::RtClass* klass = obj->klass;
+    const metadata::RtClass* klass = obj->klass;
     assert(Class::is_enum_type(klass));
 
     const void* data_ptr = Object::get_boxed_enum_data_ptr(obj);
@@ -144,7 +146,7 @@ RtResult<uint64_t> Enum::get_boxed_enum_data_as_unsigned_and_extended_to_u64(RtO
         value = *static_cast<const uint64_t*>(data_ptr);
         break;
     default:
-        RET_ERR(RtErr::ExecutionEngine);
+        RET_ASSERT_ERR(RtErr::ExecutionEngine);
     }
 
     RET_OK(value);
@@ -152,7 +154,7 @@ RtResult<uint64_t> Enum::get_boxed_enum_data_as_unsigned_and_extended_to_u64(RtO
 
 RtResult<int32_t> Enum::get_hash_code(RtObject* obj)
 {
-    metadata::RtClass* klass = obj->klass;
+    const metadata::RtClass* klass = obj->klass;
     assert(Class::is_enum_type(klass));
 
     const void* data_ptr = Object::get_boxed_enum_data_ptr(obj);
@@ -174,7 +176,8 @@ RtResult<int32_t> Enum::get_hash_code(RtObject* obj)
         result = static_cast<int32_t>(*static_cast<const uint8_t*>(data_ptr));
         break;
     case metadata::RtElementType::I2:
-        result = static_cast<int32_t>(*static_cast<const int16_t*>(data_ptr));
+        // it's unnecessary to cast to uint16_t, we just make implementation same to il2cpp.
+        result = static_cast<int32_t>(*static_cast<const uint16_t*>(data_ptr));
         break;
     case metadata::RtElementType::U2:
         result = static_cast<int32_t>(*static_cast<const uint16_t*>(data_ptr));
@@ -193,10 +196,11 @@ RtResult<int32_t> Enum::get_hash_code(RtObject* obj)
         break;
     }
     default:
-        RET_ERR(RtErr::ExecutionEngine);
+        RET_ASSERT_ERR(RtErr::ExecutionEngine);
     }
 
     RET_OK(result);
 }
 
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

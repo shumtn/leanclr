@@ -1,4 +1,4 @@
-#include <optional>
+#include "core/stl_compat.h"
 
 #include "customattribute.h"
 #include "class.h"
@@ -17,7 +17,9 @@
 #include "metadata/module_def.h"
 #include "const_strs.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 // Helper structures
@@ -39,7 +41,7 @@ static RtResult<std::optional<utils::Span<const char>>> read_ser_string(utils::B
 {
     uint8_t first_byte = 0;
     if (!reader->try_read_byte(first_byte))
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
 
     if (first_byte == 0xFF)
     {
@@ -52,16 +54,16 @@ static RtResult<std::optional<utils::Span<const char>>> read_ser_string(utils::B
     else
     {
         if (!reader->try_offset(-1))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         uint32_t len = 0;
         if (!reader->try_read_compressed_uint32(len))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         const uint8_t* str_ptr = reader->get_current_ptr();
         if (!reader->try_advance(len))
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
-        return std::optional(utils::Span<const char>(reinterpret_cast<const char*>(str_ptr), len));
+        return std::optional<utils::Span<const char>>(utils::Span<const char>(reinterpret_cast<const char*>(str_ptr), len));
     }
 }
 
@@ -75,7 +77,7 @@ static RtResult<uint64_t> read_customattribute_elem_simple_value(utils::BinaryRe
     {
         uint8_t b = 0;
         if (!reader->try_read_byte(b))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         value = (b != 0) ? 1u : 0u;
         break;
     }
@@ -84,7 +86,7 @@ static RtResult<uint64_t> read_customattribute_elem_simple_value(utils::BinaryRe
     {
         uint16_t c = 0;
         if (!reader->try_read_u16(c))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         value = (uint64_t)c;
         break;
     }
@@ -92,7 +94,7 @@ static RtResult<uint64_t> read_customattribute_elem_simple_value(utils::BinaryRe
     {
         int8_t i = 0;
         if (!reader->try_read_any(i))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         value = (uint64_t)i;
         break;
     }
@@ -100,7 +102,7 @@ static RtResult<uint64_t> read_customattribute_elem_simple_value(utils::BinaryRe
     {
         uint8_t u = 0;
         if (!reader->try_read_byte(u))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         value = (uint64_t)u;
         break;
     }
@@ -108,7 +110,7 @@ static RtResult<uint64_t> read_customattribute_elem_simple_value(utils::BinaryRe
     {
         int16_t i = 0;
         if (!reader->try_read_any(i))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         value = (uint64_t)i;
         break;
     }
@@ -116,7 +118,7 @@ static RtResult<uint64_t> read_customattribute_elem_simple_value(utils::BinaryRe
     {
         int32_t i = 0;
         if (!reader->try_read_any(i))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         value = (uint64_t)i;
         break;
     }
@@ -124,7 +126,7 @@ static RtResult<uint64_t> read_customattribute_elem_simple_value(utils::BinaryRe
     {
         uint32_t u = 0;
         if (!reader->try_read_u32(u))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         value = (uint64_t)u;
         break;
     }
@@ -132,21 +134,21 @@ static RtResult<uint64_t> read_customattribute_elem_simple_value(utils::BinaryRe
     {
         int64_t i = 0;
         if (!reader->try_read_any(i))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         value = (uint64_t)i;
         break;
     }
     case metadata::RtElementType::U8:
     {
         if (!reader->try_read_u64(value))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         break;
     }
     case metadata::RtElementType::R4:
     {
         float f = 0.0f;
         if (!reader->try_read_f32(f))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         *(float*)&value = f;
         break;
     }
@@ -154,12 +156,12 @@ static RtResult<uint64_t> read_customattribute_elem_simple_value(utils::BinaryRe
     {
         double d = 0.0;
         if (!reader->try_read_f64(d))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         *(double*)&value = d;
         break;
     }
     default:
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     RET_OK(value);
@@ -212,12 +214,12 @@ static RtResult<metadata::RtElementType> get_custom_attribute_elem_type_from_typ
         }
         else
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         break;
     }
     default:
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     return ca_ele_type;
@@ -252,7 +254,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         if (s)
         {
             auto& data = s.value();
-            RtString* str_obj = String::create_string_from_utf8chars(data.data(), data.size());
+            RtString* str_obj = String::create_string_from_utf8chars(data.data(), static_cast<int32_t>(data.size()));
             val = (uint64_t)str_obj;
         }
         else
@@ -266,7 +268,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
     {
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(std::optional<utils::Span<const char>>, opt_type_name, read_ser_string(reader));
         if (!opt_type_name)
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         auto& type_name_span = opt_type_name.value();
 
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionType*, type_obj,
@@ -279,7 +281,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
     {
         uint8_t val_type_byte = 0;
         if (!reader->try_read_byte(val_type_byte))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         metadata::RtElementType val_type = static_cast<metadata::RtElementType>(val_type_byte);
 
         const CorLibTypes& corlib_types = Class::get_corlib_types();
@@ -291,7 +293,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             uint8_t raw_data = 0;
             if (!reader->try_read_byte(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_boolean, &raw_data));
             break;
         }
@@ -299,7 +301,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             uint16_t raw_data = 0;
             if (!reader->try_read_u16(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_char, &raw_data));
             break;
         }
@@ -307,7 +309,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             int8_t raw_data = 0;
             if (!reader->try_read_any(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_sbyte, &raw_data));
             break;
         }
@@ -315,7 +317,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             uint8_t raw_data = 0;
             if (!reader->try_read_byte(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_byte, &raw_data));
             break;
         }
@@ -323,7 +325,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             int16_t raw_data = 0;
             if (!reader->try_read_any(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_int16, &raw_data));
             break;
         }
@@ -331,7 +333,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             uint16_t raw_data = 0;
             if (!reader->try_read_u16(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_uint16, &raw_data));
             break;
         }
@@ -339,7 +341,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             int32_t raw_data = 0;
             if (!reader->try_read_any(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_int32, &raw_data));
             break;
         }
@@ -347,7 +349,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             uint32_t raw_data = 0;
             if (!reader->try_read_u32(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_uint32, &raw_data));
             break;
         }
@@ -355,7 +357,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             int64_t raw_data = 0;
             if (!reader->try_read_any(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_int64, &raw_data));
             break;
         }
@@ -363,7 +365,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             uint64_t raw_data = 0;
             if (!reader->try_read_u64(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_uint64, &raw_data));
             break;
         }
@@ -371,7 +373,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             float raw_data = 0.0f;
             if (!reader->try_read_f32(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_single, &raw_data));
             break;
         }
@@ -379,7 +381,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             double raw_data = 0.0;
             if (!reader->try_read_f64(raw_data))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(corlib_types.cls_double, &raw_data));
             break;
         }
@@ -389,7 +391,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
             if (s)
             {
                 auto& data = s.value();
-                obj = String::create_string_from_utf8chars(data.data(), data.size());
+                obj = String::create_string_from_utf8chars(data.data(), static_cast<int32_t>(data.size()));
             }
             else
             {
@@ -401,13 +403,13 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(std::optional<utils::Span<const char>>, opt_enum_name, read_ser_string(reader));
             if (!opt_enum_name)
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             auto& enum_name_span = opt_enum_name.value();
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionType*, type_obj,
                                                     CustomAttribute::parse_assembly_qualified_type(mod, enum_name_span.data(), enum_name_span.size(), false));
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, enum_klass, Class::get_class_from_typesig(type_obj->type_handle));
             if (!Class::is_enum_type(enum_klass))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(uint64_t, enum_value,
                                                     read_customattribute_elem_simple_value(reader, Class::get_element_type(enum_klass->element_class)));
             UNWRAP_OR_RET_ERR_ON_FAIL(obj, Object::box_object(enum_klass, &enum_value));
@@ -417,7 +419,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
         {
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(std::optional<utils::Span<const char>>, opt_type_name, read_ser_string(reader));
             if (!opt_type_name)
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             auto& type_name_span = opt_type_name.value();
 
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionType*, type_obj,
@@ -430,12 +432,12 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
             uint8_t ele_type_byte = 0;
             if (!reader->try_read_byte(ele_type_byte))
             {
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             metadata::RtElementType ele_type = static_cast<metadata::RtElementType>(ele_type_byte);
             uint32_t num_elems = 0;
             if (!reader->try_read_u32(num_elems))
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             if (num_elems == UINT32_MAX)
             {
                 obj = nullptr; // null array
@@ -445,8 +447,8 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
                 metadata::RtTypeSig ele_type_sig{};
                 ele_type_sig.ele_type = ele_type;
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, ele_klass, Class::get_class_from_typesig(&ele_type_sig));
-                DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, elem_arr, Array::new_szarray_from_ele_klass(ele_klass, (int32_t)num_elems));
-                uint32_t ele_size = Array::get_array_element_size(elem_arr);
+                DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, elem_arr, Array::new_szarray_from_ele_klass(ele_klass, static_cast<int32_t>(num_elems)));
+                size_t ele_size = Array::get_array_element_size(elem_arr);
                 uint8_t* arr_data_ptr = Array::get_array_data_start_as<uint8_t>(elem_arr);
                 for (uint32_t i = 0; i < num_elems; ++i)
                 {
@@ -460,7 +462,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
             break;
         }
         default:
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
 
         val = (uint64_t)obj;
@@ -468,7 +470,7 @@ static RtResult<uint64_t> read_customattribute_elem_value(metadata::RtModuleDef*
     }
 
     default:
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     return val;
@@ -489,7 +491,7 @@ static RtResult<FixedArg> read_fixed_arg(metadata::RtModuleDef* mod, const metad
     {
         uint32_t num_elems = 0;
         if (!reader->try_read_u32(num_elems))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
 
         if (num_elems == UINT32_MAX)
         {
@@ -499,9 +501,9 @@ static RtResult<FixedArg> read_fixed_arg(metadata::RtModuleDef* mod, const metad
         {
             const metadata::RtTypeSig* ele_type_sig = param_type->data.element_type;
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, ele_klass, Class::get_class_from_typesig(ele_type_sig));
-            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, elem_arr, Array::new_szarray_from_ele_klass(ele_klass, (int32_t)num_elems));
+            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, elem_arr, Array::new_szarray_from_ele_klass(ele_klass, static_cast<int32_t>(num_elems)));
 
-            uint32_t ele_size = Array::get_array_element_size(elem_arr);
+            size_t ele_size = Array::get_array_element_size(elem_arr);
             uint8_t* arr_data_ptr = Array::get_array_data_start_as<uint8_t>(elem_arr);
 
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtElementType, ele_ele_type, get_custom_attribute_elem_type_from_typesig(ele_type_sig));
@@ -525,7 +527,7 @@ static RtResult<metadata::RtElementType> read_field_or_prop_type(metadata::RtMod
 {
     uint8_t ele_type_byte = 0;
     if (!reader->try_read_byte(ele_type_byte))
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     metadata::RtElementType ele_type = static_cast<metadata::RtElementType>(ele_type_byte);
 
     metadata::RtElementType result = ele_type;
@@ -545,6 +547,8 @@ static RtResult<metadata::RtElementType> read_field_or_prop_type(metadata::RtMod
     case metadata::RtElementType::R4:
     case metadata::RtElementType::R8:
     case metadata::RtElementType::String:
+    case metadata::RtElementType::CASystemType:
+    case metadata::RtElementType::CAObject:
         result = ele_type;
         break;
 
@@ -559,18 +563,18 @@ static RtResult<metadata::RtElementType> read_field_or_prop_type(metadata::RtMod
     {
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(std::optional<utils::Span<const char>>, opt_enum_name, read_ser_string(reader));
         if (!opt_enum_name)
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         auto& enum_name_span = opt_enum_name.value();
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionType*, type_obj,
                                                 CustomAttribute::parse_assembly_qualified_type(mod, enum_name_span.data(), enum_name_span.size(), false));
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, enum_klass, Class::get_class_from_typesig(type_obj->type_handle));
         if (!Class::is_enum_type(enum_klass))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         result = Class::get_element_type(enum_klass->element_class);
         break;
     }
     default:
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     RET_OK(result);
@@ -580,7 +584,7 @@ static RtResult<NamedArgWithoutValue> read_named_arg(metadata::RtModuleDef* mod,
 {
     uint8_t type_tag = 0;
     if (!reader->try_read_byte(type_tag))
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
 
     bool is_field;
     if (type_tag == (uint8_t)metadata::RtElementType::CAField)
@@ -593,14 +597,14 @@ static RtResult<NamedArgWithoutValue> read_named_arg(metadata::RtModuleDef* mod,
     }
     else
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtElementType, field_or_prop_type, read_field_or_prop_type(mod, reader));
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(std::optional<utils::Span<const char>>, name, read_ser_string(reader));
     if (!name)
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
 
     NamedArgWithoutValue result{};
     result.is_field = is_field;
@@ -615,40 +619,9 @@ static RtResult<NamedArgWithoutValue> read_named_arg(metadata::RtModuleDef* mod,
 RtResult<RtReflectionType*> CustomAttribute::parse_assembly_qualified_type(metadata::RtModuleDef* default_mod, const char* assembly_qualified_type_name,
                                                                            size_t name_len, bool ignore_case)
 {
-    AssemblyQualifiedNames qn(assembly_qualified_type_name, name_len);
-    qn.parse();
-    metadata::RtModuleDef* search_ass_list[2];
-    if (!qn.assembly_name.empty())
-    {
-        metadata::RtAssembly* ass = Assembly::find_by_name(qn.assembly_name.c_str());
-        if (!ass)
-        {
-            RET_ERR(RtErr::TypeLoad);
-        }
-        search_ass_list[0] = ass->mod;
-        search_ass_list[1] = nullptr;
-    }
-    else
-    {
-        search_ass_list[0] = default_mod;
-        metadata::RtModuleDef* corlib = Assembly::get_corlib()->mod;
-        search_ass_list[1] = default_mod != corlib ? corlib : nullptr;
-    };
-    for (metadata::RtModuleDef* mod : search_ass_list)
-    {
-        if (!mod)
-        {
-            break;
-        }
-        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const metadata::RtTypeSig*, typeSig,
-                                                Type::resolve_assembly_qualified_name(mod, qn.type_full_name.c_str(), qn.type_full_name.size(), false));
-        if (!typeSig)
-        {
-            continue;
-        }
-        return Reflection::get_type_reflection_object(typeSig);
-    }
-    RET_ERR(RtErr::TypeLoad);
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const metadata::RtTypeSig*, typeSig,
+                                            vm::Type::parse_assembly_qualified_type(default_mod, assembly_qualified_type_name, name_len, ignore_case));
+    return Reflection::get_type_reflection_object(typeSig);
 }
 
 static RtResult<bool> is_type_match_for_custom_attribute_elem(metadata::RtElementType ca_ele_type, const metadata::RtTypeSig* field_or_property_typesig)
@@ -726,13 +699,13 @@ static RtResult<bool> is_type_match_for_custom_attribute_elem(metadata::RtElemen
 RtResult<RtObject*> CustomAttribute::read_custom_attribute(metadata::RtModuleDef* mod, const metadata::RtCustomAttributeRawData* data)
 {
     const metadata::RtMethodInfo* ctor_method = data->ctor;
-    metadata::RtClass* klass = ctor_method->parent;
-    RET_ERR_ON_FAIL(Class::initialize_all(klass));
+    const metadata::RtClass* klass = ctor_method->parent;
+    RET_ERR_ON_FAIL(Class::initialize_all(const_cast<metadata::RtClass*>(klass)));
 
     const CorLibTypes& types = Class::get_corlib_types();
     if (!Class::has_class_parent_fast(klass, types.cls_attribute))
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtObject*, ca_obj, Object::new_object(klass));
@@ -742,7 +715,7 @@ RtResult<RtObject*> CustomAttribute::read_custom_attribute(metadata::RtModuleDef
     if (data->dataBlobIndex == 0)
     {
         if (param_count != 0)
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
 
         RET_ERR_ON_FAIL(Runtime::invoke_with_run_cctor(ctor_method, ca_obj, nullptr));
     }
@@ -752,9 +725,9 @@ RtResult<RtObject*> CustomAttribute::read_custom_attribute(metadata::RtModuleDef
 
         uint16_t prolog = 0;
         if (!reader.try_read_u16(prolog))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         if (prolog != 0x0001)
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
 
         if (param_count == 0)
         {
@@ -775,7 +748,7 @@ RtResult<RtObject*> CustomAttribute::read_custom_attribute(metadata::RtModuleDef
             {
                 const metadata::RtTypeSig* param_type_sig = ctor_method->parameters[i];
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(FixedArg, fixed_arg, read_fixed_arg(mod, param_type_sig, &reader));
-                fixed_arg_buf[i] = fixed_arg.value;
+                fixed_arg_buf[i] = static_cast<int64_t>(fixed_arg.value);
 
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, is_val_type, Type::is_value_type(param_type_sig));
                 invoke_args[i] = is_val_type ? (const void*)&fixed_arg_buf[i] : (const void*)fixed_arg_buf[i];
@@ -785,7 +758,7 @@ RtResult<RtObject*> CustomAttribute::read_custom_attribute(metadata::RtModuleDef
 
         uint16_t named_arg_count = 0;
         if (!reader.try_read_u16(named_arg_count))
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
 
         for (uint16_t i = 0; i < named_arg_count; ++i)
         {
@@ -793,7 +766,8 @@ RtResult<RtObject*> CustomAttribute::read_custom_attribute(metadata::RtModuleDef
 
             if (named_arg.is_field)
             {
-                const metadata::RtFieldInfo* field_info = Class::get_field_for_name(klass, named_arg.name.data(), named_arg.name.size(), true);
+                const metadata::RtFieldInfo* field_info =
+                    Class::get_field_for_name(klass, named_arg.name.data(), static_cast<uint32_t>(named_arg.name.size()), true);
                 if (!field_info)
                     RET_ERR(RtErr::MissingField);
 
@@ -802,12 +776,13 @@ RtResult<RtObject*> CustomAttribute::read_custom_attribute(metadata::RtModuleDef
 
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, is_type_match, is_type_match_for_custom_attribute_elem(value.ele_type, field_type_sig));
                 if (!is_type_match)
-                    RET_ERR(RtErr::BadImageFormat);
+                    RET_ASSERT_ERR(RtErr::BadImageFormat);
                 RET_ERR_ON_FAIL(Field::set_instance_value(field_info, ca_obj, &value.value));
             }
             else
             {
-                const metadata::RtPropertyInfo* property_info = Class::get_property_for_name(klass, named_arg.name.data(), named_arg.name.size(), true);
+                const metadata::RtPropertyInfo* property_info =
+                    Class::get_property_for_name(klass, named_arg.name.data(), static_cast<uint32_t>(named_arg.name.size()), true);
                 if (!property_info)
                     RET_ERR(RtErr::MissingMember);
 
@@ -815,7 +790,7 @@ RtResult<RtObject*> CustomAttribute::read_custom_attribute(metadata::RtModuleDef
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(FixedArg, value, read_fixed_arg(mod, property_type_sig, &reader));
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, is_type_match, is_type_match_for_custom_attribute_elem(value.ele_type, property_type_sig));
                 if (!is_type_match)
-                    RET_ERR(RtErr::BadImageFormat);
+                    RET_ASSERT_ERR(RtErr::BadImageFormat);
 
                 const metadata::RtMethodInfo* setter = property_info->set_method;
                 if (!setter)
@@ -863,12 +838,12 @@ RtResultVoid CustomAttribute::resolve_customattribute_data_arguments(utils::Bina
                                                                      const metadata::RtMethodInfo* ctor_method, RtArray** typed_arg_arr_ptr,
                                                                      RtArray** named_arg_arr_ptr)
 {
-    metadata::RtClass* klass = ctor_method->parent;
+    const metadata::RtClass* klass = ctor_method->parent;
     uint16_t prolog = 0;
     if (!reader->try_read_u16(prolog))
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     if (prolog != 0x0001)
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
 
     const auto& corlib_types = Class::get_corlib_types();
 
@@ -901,12 +876,12 @@ RtResultVoid CustomAttribute::resolve_customattribute_data_arguments(utils::Bina
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtObject*, typed_arg_obj,
                                                 new_custom_attribute_typed_argument(typed_arg_ctor, param_type_sig, &fixed_arg.value));
         // gc::GarbageCollector::write_barrier((RtObject**)&typed_arg_obj, typed_arg_obj);
-        Array::set_array_data_at(typed_arg_arr, i, typed_arg_obj);
+        Array::set_array_data_at(typed_arg_arr, static_cast<int32_t>(i), typed_arg_obj);
     }
 
     uint16_t named_arg_count = 0;
     if (!reader->try_read_u16(named_arg_count))
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, named_arg_arr, Array::new_szarray_from_ele_klass(corlib_types.cls_object, (int32_t)named_arg_count));
     *named_arg_arr_ptr = named_arg_arr;
@@ -919,7 +894,8 @@ RtResultVoid CustomAttribute::resolve_customattribute_data_arguments(utils::Bina
         RtObject* member_info_obj = nullptr;
         if (named_arg.is_field)
         {
-            const metadata::RtFieldInfo* field_info = Class::get_field_for_name(klass, named_arg.name.data(), named_arg.name.size(), true);
+            const metadata::RtFieldInfo* field_info =
+                Class::get_field_for_name(klass, named_arg.name.data(), static_cast<uint32_t>(named_arg.name.size()), true);
             if (!field_info)
                 RET_ERR(RtErr::MissingField);
 
@@ -927,21 +903,22 @@ RtResultVoid CustomAttribute::resolve_customattribute_data_arguments(utils::Bina
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(FixedArg, value, read_fixed_arg(mod, field_type_sig, reader));
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, is_type_match, is_type_match_for_custom_attribute_elem(value.ele_type, field_type_sig));
             if (!is_type_match)
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionField*, ref_field, Reflection::get_field_reflection_object(field_info, field_info->parent));
             member_info_obj = (RtObject*)ref_field;
             UNWRAP_OR_RET_ERR_ON_FAIL(typed_arg_obj, new_custom_attribute_typed_argument(typed_arg_ctor, field_type_sig, &value.value));
         }
         else
         {
-            const metadata::RtPropertyInfo* property_info = Class::get_property_for_name(klass, named_arg.name.data(), named_arg.name.size(), true);
+            const metadata::RtPropertyInfo* property_info =
+                Class::get_property_for_name(klass, named_arg.name.data(), static_cast<uint32_t>(named_arg.name.size()), true);
             if (!property_info)
                 RET_ERR(RtErr::MissingMember);
             const metadata::RtTypeSig* property_type_sig = property_info->property_sig.type_sig;
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(FixedArg, value, read_fixed_arg(mod, property_type_sig, reader));
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, is_type_match, is_type_match_for_custom_attribute_elem(value.ele_type, property_type_sig));
             if (!is_type_match)
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionProperty*, prop_info_obj,
                                                     Reflection::get_property_reflection_object(property_info, property_info->parent));
             member_info_obj = (RtObject*)prop_info_obj;
@@ -955,12 +932,13 @@ RtResultVoid CustomAttribute::resolve_customattribute_data_arguments(utils::Bina
     RET_VOID_OK();
 }
 
-RtResult<bool> CustomAttribute::has_customattribute_on_target(metadata::RtModuleDef* mod, uint32_t target_token, metadata::RtClass* attr_klass)
+RtResult<bool> CustomAttribute::has_customattribute_on_target(metadata::RtModuleDef* mod, metadata::EncodedTokenId target_token,
+                                                              const metadata::RtClass* attr_klass)
 {
     if (target_token == 0)
         RET_OK(false);
 
-    RET_ERR_ON_FAIL(Class::initialize_super_types(attr_klass));
+    RET_ERR_ON_FAIL(Class::initialize_super_types(const_cast<metadata::RtClass*>(attr_klass)));
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(metadata::RtCustomAttributeRidRange, rid_range, mod->get_custom_attribute_rid_range(target_token));
 
@@ -969,8 +947,8 @@ RtResult<bool> CustomAttribute::has_customattribute_on_target(metadata::RtModule
         uint32_t ca_rid = rid_range.start_rid + i;
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtCustomAttributeRawData, raw_data, mod->get_custom_attribute_raw_data(ca_rid));
 
-        metadata::RtClass* data_klass = raw_data.ctor->parent;
-        RET_ERR_ON_FAIL(Class::initialize_super_types(data_klass));
+        const metadata::RtClass* data_klass = raw_data.ctor->parent;
+        RET_ERR_ON_FAIL(Class::initialize_super_types(const_cast<metadata::RtClass*>(data_klass)));
 
         if (Class::has_class_parent_fast(data_klass, attr_klass))
             RET_OK(true);
@@ -979,37 +957,37 @@ RtResult<bool> CustomAttribute::has_customattribute_on_target(metadata::RtModule
     RET_OK(false);
 }
 
-RtResult<bool> CustomAttribute::has_customattribute_on_field(const metadata::RtFieldInfo* field, metadata::RtClass* attr_klass)
+RtResult<bool> CustomAttribute::has_customattribute_on_field(const metadata::RtFieldInfo* field, const metadata::RtClass* attr_klass)
 {
     metadata::RtModuleDef* mod = field->parent->image;
     return has_customattribute_on_target(mod, field->token, attr_klass);
 }
 
-RtResult<bool> CustomAttribute::has_customattribute_on_method(const metadata::RtMethodInfo* method, metadata::RtClass* customattribute_klass)
+RtResult<bool> CustomAttribute::has_customattribute_on_method(const metadata::RtMethodInfo* method, const metadata::RtClass* customattribute_klass)
 {
     metadata::RtModuleDef* mod = method->parent->image;
     return has_customattribute_on_target(mod, method->token, customattribute_klass);
 }
 
-RtResult<bool> CustomAttribute::has_customattribute_on_class(metadata::RtClass* klass, metadata::RtClass* customattribute_klass)
+RtResult<bool> CustomAttribute::has_customattribute_on_class(const metadata::RtClass* klass, const metadata::RtClass* customattribute_klass)
 {
     metadata::RtModuleDef* mod = klass->image;
     return has_customattribute_on_target(mod, klass->token, customattribute_klass);
 }
 
-RtResult<bool> CustomAttribute::has_customattribute_on_property(const metadata::RtPropertyInfo* property, metadata::RtClass* customattribute_klass)
+RtResult<bool> CustomAttribute::has_customattribute_on_property(const metadata::RtPropertyInfo* property, const metadata::RtClass* customattribute_klass)
 {
     metadata::RtModuleDef* mod = property->parent->image;
     return has_customattribute_on_target(mod, property->token, customattribute_klass);
 }
 
-RtResult<bool> CustomAttribute::has_customattribute_on_event(const metadata::RtEventInfo* event, metadata::RtClass* customattribute_klass)
+RtResult<bool> CustomAttribute::has_customattribute_on_event(const metadata::RtEventInfo* event, const metadata::RtClass* customattribute_klass)
 {
     metadata::RtModuleDef* mod = event->parent->image;
     return has_customattribute_on_target(mod, event->token, customattribute_klass);
 }
 
-RtResult<bool> CustomAttribute::has_customattribute_on_parameter(RtReflectionParameter* parameter, metadata::RtClass* customattribute_klass)
+RtResult<bool> CustomAttribute::has_customattribute_on_parameter(RtReflectionParameter* parameter, const metadata::RtClass* customattribute_klass)
 {
     auto ref_method = reinterpret_cast<RtReflectionMethod*>(parameter->member);
     const metadata::RtMethodInfo* method = ref_method->method;
@@ -1022,7 +1000,7 @@ RtResult<bool> CustomAttribute::has_customattribute_on_parameter(RtReflectionPar
     return has_customattribute_on_target(mod, param_token, customattribute_klass);
 }
 
-RtResult<bool> CustomAttribute::has_customattribute_on_assembly(metadata::RtModuleDef* mod, metadata::RtClass* customattribute_klass)
+RtResult<bool> CustomAttribute::has_customattribute_on_assembly(metadata::RtModuleDef* mod, const metadata::RtClass* customattribute_klass)
 {
     uint32_t ass_token = mod->get_assembly_token();
     return has_customattribute_on_target(mod, ass_token, customattribute_klass);
@@ -1034,7 +1012,7 @@ static RtResult<CustomAttributeProvider> get_token_of_customattribute_provider(R
         RET_ERR(RtErr::NullReference);
 
     const CorLibTypes& corlib_types = Class::get_corlib_types();
-    metadata::RtClass* obj_klass = obj->klass;
+    const metadata::RtClass* obj_klass = obj->klass;
 
     CustomAttributeProvider provider{};
 
@@ -1108,13 +1086,14 @@ static RtResult<CustomAttributeProvider> get_token_of_customattribute_provider(R
     RET_OK(provider);
 }
 
-RtResult<bool> CustomAttribute::has_attribute(RtObject* obj, metadata::RtClass* attr_klass)
+RtResult<bool> CustomAttribute::has_attribute(RtObject* obj, const metadata::RtClass* attr_klass)
 {
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(CustomAttributeProvider, provider, get_token_of_customattribute_provider(obj));
     return has_customattribute_on_target(provider.mod, provider.token, attr_klass);
 }
 
-RtResult<RtArray*> CustomAttribute::get_customattribute_on_target_token(metadata::RtModuleDef* mod, uint32_t target_token, metadata::RtClass* attr_klass)
+RtResult<RtArray*> CustomAttribute::get_customattributes_on_target_token(metadata::RtModuleDef* mod, metadata::EncodedTokenId target_token,
+                                                                         const metadata::RtClass* attr_klass)
 {
     const CorLibTypes& types = Class::get_corlib_types();
 
@@ -1125,7 +1104,7 @@ RtResult<RtArray*> CustomAttribute::get_customattribute_on_target_token(metadata
 
     if (attr_klass)
     {
-        RET_ERR_ON_FAIL(Class::initialize_super_types(attr_klass));
+        RET_ERR_ON_FAIL(Class::initialize_super_types(const_cast<metadata::RtClass*>(attr_klass)));
     }
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(metadata::RtCustomAttributeRidRange, rid_range, mod->get_custom_attribute_rid_range(target_token));
@@ -1158,10 +1137,10 @@ RtResult<RtArray*> CustomAttribute::get_customattribute_on_target_token(metadata
     return ca_arr;
 }
 
-RtResult<RtArray*> CustomAttribute::get_customattributes_on_target_object(RtObject* obj, metadata::RtClass* attr_klass)
+RtResult<RtArray*> CustomAttribute::get_customattributes_on_target_object(RtObject* obj, const metadata::RtClass* attr_klass)
 {
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(CustomAttributeProvider, provider, get_token_of_customattribute_provider(obj));
-    return get_customattribute_on_target_token(provider.mod, provider.token, attr_klass);
+    return get_customattributes_on_target_token(provider.mod, provider.token, attr_klass);
 }
 
 RtResult<RtArray*> CustomAttribute::get_customattributes_data_on_target(RtObject* obj)
@@ -1189,7 +1168,7 @@ RtResult<const metadata::RtMethodInfo*> get_customattribute_data_ctor()
     RET_OK(s_customattribute_data_ctor);
 }
 
-RtResult<RtArray*> CustomAttribute::get_customattributes_data_on_target_token(metadata::RtModuleDef* mod, uint32_t target_token)
+RtResult<RtArray*> CustomAttribute::get_customattributes_data_on_target_token(metadata::RtModuleDef* mod, metadata::EncodedTokenId target_token)
 {
     const CorLibTypes& types = Class::get_corlib_types();
 
@@ -1230,4 +1209,107 @@ RtResult<RtArray*> CustomAttribute::get_customattributes_data_on_target_token(me
     RET_OK(ca_data_arr);
 }
 
-} // namespace leanclr::vm
+static const metadata::RtMethodInfo* s_marshal_as_ctor = nullptr;
+static const metadata::RtFieldInfo* s_marshal_as_size_const_field = nullptr;
+static const metadata::RtFieldInfo* s_marshal_as_array_sub_type_field = nullptr;
+static const metadata::RtFieldInfo* s_marshal_as_size_param_index_field = nullptr;
+
+static void init_marshal_as_fields()
+{
+    if (s_marshal_as_ctor)
+    {
+        return;
+    }
+    const CorLibTypes& corlib_types = Class::get_corlib_types();
+    const metadata::RtClass* marshal_as_klass = corlib_types.cls_marshal_as;
+    const metadata::RtTypeSig* param_type_sigs[] = {
+        corlib_types.cls_int16->by_val,
+    };
+    s_marshal_as_ctor = Method::find_matched_method_in_class_by_name_and_signature(marshal_as_klass, STR_CTOR, param_type_sigs, 1);
+    assert(s_marshal_as_ctor);
+    s_marshal_as_size_const_field = Class::get_field_for_name(marshal_as_klass, "SizeConst", false);
+    assert(s_marshal_as_size_const_field);
+    s_marshal_as_array_sub_type_field = Class::get_field_for_name(marshal_as_klass, "ArraySubType", false);
+    assert(s_marshal_as_array_sub_type_field);
+    s_marshal_as_size_param_index_field = Class::get_field_for_name(marshal_as_klass, "SizeParamIndex", false);
+    assert(s_marshal_as_size_param_index_field);
+}
+
+RtResult<RtCustomAttribute*> CustomAttribute::get_marshal_info(const metadata::RtFieldInfo* field)
+{
+    if (!vm::Field::has_field_marshal(field))
+    {
+        RET_OK(nullptr);
+    }
+
+    metadata::RtModuleDef* mod = field->parent->image;
+    const metadata::CliImage& cli_image = mod->get_cli_image();
+    uint32_t field_rid = metadata::RtToken::decode_rid(field->token);
+    uint32_t fieldmarshal_parent = metadata::RtMetadata::encode_has_field_marshal_coded_index(metadata::TableType::Field, field_rid);
+    std::optional<uint32_t> marshal_rid = cli_image.find_row_of_owner(metadata::TableType::FieldMarshal, 0, fieldmarshal_parent);
+    if (!marshal_rid)
+    {
+        // impossible for valid dll file.
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
+    }
+
+    std::optional<metadata::RowFieldMarshal> marshal_row = cli_image.read_field_marshal(marshal_rid.value());
+    assert(marshal_row.has_value());
+
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL3(utils::BinaryReader, reader, mod->get_decoded_blob_reader(marshal_row->native_type));
+    uint8_t native_type = 0;
+    if (!reader.try_read_byte(native_type))
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
+
+    init_marshal_as_fields();
+    const CorLibTypes& corlib_types = Class::get_corlib_types();
+
+    assert(sizeof(metadata::RtMarshalNativeType) == sizeof(int32_t));
+    metadata::RtMarshalNativeType native_intrinsic_type = static_cast<metadata::RtMarshalNativeType>(native_type);
+
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtObject*, marshal_as_obj, Object::new_object(corlib_types.cls_marshal_as));
+    const void* ctor_args[1] = {&native_intrinsic_type};
+    RET_ERR_ON_FAIL(Runtime::invoke_with_run_cctor(s_marshal_as_ctor, marshal_as_obj, ctor_args));
+
+    metadata::RtMarshalNativeType ele_type = metadata::RtMarshalNativeType::Max;
+    uint32_t param_num = 0;
+    uint32_t num_elems = 0;
+    switch (native_intrinsic_type)
+    {
+    case metadata::RtMarshalNativeType::Array:
+    {
+        uint8_t ele_type_byte = 0;
+        if (!reader.try_read_byte(ele_type_byte))
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
+        ele_type = static_cast<metadata::RtMarshalNativeType>(ele_type_byte);
+        vm::Field::set_instance_value(s_marshal_as_array_sub_type_field, marshal_as_obj, &ele_type);
+        if (reader.not_empty())
+        {
+            if (!reader.try_read_compressed_uint32(param_num))
+            {
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
+            }
+            vm::Field::set_instance_value(s_marshal_as_size_param_index_field, marshal_as_obj, &param_num);
+        }
+        if (reader.not_empty())
+        {
+            if (!reader.try_read_compressed_uint32(num_elems))
+            {
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
+            }
+            vm::Field::set_instance_value(s_marshal_as_size_const_field, marshal_as_obj, &num_elems);
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    if (reader.not_empty())
+    {
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
+    }
+    RET_OK((RtCustomAttribute*)marshal_as_obj);
+}
+
+} // namespace vm
+} // namespace leanclr

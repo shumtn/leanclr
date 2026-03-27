@@ -8,12 +8,17 @@ namespace LeanAOT.ToCpp
         public const string RtResultVoidTypeName = "leanclr::RtResultVoid";
         public const string RtResultTypeName = "leanclr::RtResult";
 
+        public const string CodegenReturn = "LEANCLR_CODEGEN_RETURN";
+        public const string CodegenReturnErr = "LEANCLR_CODEGEN_RETURN_ERR";
+        public const string CodegenReturnVoid = "LEANCLR_CODEGEN_RETURN_VOID";
+
         public const string MethodDefDataTypeName = "leanclr::metadata::RtAotMethodDefData";
         public const string ModuleDataTypeName = "leanclr::metadata::RtAotModuleData";
         public const string ModulesDataDataTypeName = "leanclr::metadata::RtAotModulesData";
 
         public const string MethodInfoParameterName = "___methodInfo";
         public const string ManagedMethodPointerTypeName = "leanclr::metadata::RtManagedMethodPointer";
+        public const string InvokeMethodPointerTypeName = "leanclr::metadata::RtInvokeMethodPointer";
         public const string MethodPointerFieldName = "method_ptr";
         public const string InvokerMethodPointerFieldName = "invoker_method_ptr";
         public const string VirtualInvokerMethodPointerFieldName = "virtual_invoker_method_ptr";
@@ -44,5 +49,10 @@ namespace LeanAOT.ToCpp
         public const string errNameNullReference = "NullReference";
 
         public const string KlassFieldNameStaticFieldsData = "static_fields_data";
+
+        /// <summary>
+        /// 后缀：LeanAOT 生成的 C++ 函数均为非抛风格，与运行时约定一致。
+        /// </summary>
+        public const string CppFunctionNoexcept = " noexcept";
     }
 }

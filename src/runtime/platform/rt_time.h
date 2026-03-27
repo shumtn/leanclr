@@ -1,8 +1,10 @@
 #pragma once
 
-#include "rt_base.h"
+#include "core/rt_base.h"
 
-namespace leanclr::os
+namespace leanclr
+{
+namespace os
 {
 class Time
 {
@@ -13,4 +15,5 @@ class Time
     static int64_t get_ticks_100nanos();
     static int64_t get_system_time_as_file_time();
 };
-} // namespace leanclr::os
+} // namespace os
+} // namespace leanclr

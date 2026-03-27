@@ -8,7 +8,9 @@
 #include "vm/rt_array.h"
 #include "utils/rt_vector.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 template <typename T>
@@ -19,12 +21,12 @@ static bool eq_any(const void* ptr1, const void* ptr2)
     return val1 == val2;
 }
 
-RtResult<bool> SystemValueType::internal_equals(vm::RtObject* obj1, vm::RtObject* obj2, vm::RtArray** uncompared_field_objs)
+RtResult<bool> SystemValueType::internal_equals(vm::RtObject* obj1, vm::RtObject* obj2, vm::RtArray** uncompared_field_objs) noexcept
 {
     *uncompared_field_objs = nullptr;
 
-    metadata::RtClass* klass1 = obj1->klass;
-    metadata::RtClass* klass2 = obj2->klass;
+    const metadata::RtClass* klass1 = obj1->klass;
+    const metadata::RtClass* klass2 = obj2->klass;
 
     if (klass1 != klass2)
         RET_OK(false);
@@ -59,7 +61,7 @@ RtResult<bool> SystemValueType::internal_equals(vm::RtObject* obj1, vm::RtObject
             equal = eq_any<uint64_t>(data_ptr1, data_ptr2);
             break;
         default:
-            RET_ERR(RtErr::ExecutionEngine);
+            RET_ASSERT_ERR(RtErr::ExecutionEngine);
         }
 
         RET_OK(equal);
@@ -79,7 +81,7 @@ RtResult<bool> SystemValueType::internal_equals(vm::RtObject* obj1, vm::RtObject
             continue;
 
         metadata::RtElementType field_ele_type = field->type_sig->ele_type;
-        uint32_t offset = vm::Field::get_field_offset_includes_object_header_for_all_type(field);
+        size_t offset = vm::Field::get_instance_field_offset_includes_object_header_for_all_type(field);
 
         uint8_t* field_data_ptr1 = reinterpret_cast<uint8_t*>(obj1) + offset;
         uint8_t* field_data_ptr2 = reinterpret_cast<uint8_t*>(obj2) + offset;
@@ -132,10 +134,11 @@ RtResult<bool> SystemValueType::internal_equals(vm::RtObject* obj1, vm::RtObject
 
         case metadata::RtElementType::Ptr:
         case metadata::RtElementType::FnPtr:
+        {
             if (!eq_any<void*>(field_data_ptr1, field_data_ptr2))
                 RET_OK(false);
             break;
-
+        }
         case metadata::RtElementType::String:
         {
             vm::RtString* str1 = *reinterpret_cast<vm::RtString**>(field_data_ptr1);
@@ -146,7 +149,8 @@ RtResult<bool> SystemValueType::internal_equals(vm::RtObject* obj1, vm::RtObject
                     RET_OK(false);
                 if (vm::String::get_length(str1) != vm::String::get_length(str2))
                     RET_OK(false);
-                if (std::memcmp(vm::String::get_chars_ptr(str1), vm::String::get_chars_ptr(str2), vm::String::get_length(str1) * sizeof(Utf16Char)) != 0)
+                if (std::memcmp(vm::String::get_chars_ptr(str1), vm::String::get_chars_ptr(str2),
+                                static_cast<size_t>(vm::String::get_length(str1)) * sizeof(Utf16Char)) != 0)
                 {
                     RET_OK(false);
                 }
@@ -201,7 +205,7 @@ RtResult<bool> SystemValueType::internal_equals(vm::RtObject* obj1, vm::RtObject
                         enum_equal = eq_any<uint64_t>(field_data_ptr1, field_data_ptr2);
                         break;
                     default:
-                        RET_ERR(RtErr::ExecutionEngine);
+                        RET_ASSERT_ERR(RtErr::ExecutionEngine);
                     }
 
                     if (!enum_equal)
@@ -254,7 +258,7 @@ RtResult<bool> SystemValueType::internal_equals(vm::RtObject* obj1, vm::RtObject
 
 /// @icall: System.ValueType::InternalEquals(System.Object,System.Object,System.Object[]&)
 static RtResultVoid internal_equals_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     auto obj1 = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     auto obj2 = EvalStackOp::get_param<vm::RtObject*>(params, 1);
@@ -265,11 +269,11 @@ static RtResultVoid internal_equals_invoker(metadata::RtManagedMethodPointer met
     RET_VOID_OK();
 }
 
-RtResult<int32_t> SystemValueType::internal_get_hash_code(vm::RtObject* obj, vm::RtArray** uncompared_field_objs)
+RtResult<int32_t> SystemValueType::internal_get_hash_code(vm::RtObject* obj, vm::RtArray** uncompared_field_objs) noexcept
 {
     *uncompared_field_objs = nullptr;
 
-    metadata::RtClass* klass = obj->klass;
+    const metadata::RtClass* klass = obj->klass;
     int32_t hash = static_cast<int32_t>(reinterpret_cast<uintptr_t>(klass));
 
     utils::Vector<vm::RtObject*> uncomputed_fields;
@@ -285,7 +289,7 @@ RtResult<int32_t> SystemValueType::internal_get_hash_code(vm::RtObject* obj, vm:
             continue;
 
         metadata::RtElementType field_ele_type = field->type_sig->ele_type;
-        uint32_t offset = vm::Field::get_field_offset_includes_object_header_for_all_type(field);
+        size_t offset = vm::Field::get_instance_field_offset_includes_object_header_for_all_type(field);
         uint8_t* field_data_ptr = reinterpret_cast<uint8_t*>(obj) + offset;
 
         int32_t field_hash = 0;
@@ -400,7 +404,7 @@ RtResult<int32_t> SystemValueType::internal_get_hash_code(vm::RtObject* obj, vm:
                         break;
                     }
                     default:
-                        RET_ERR(RtErr::ExecutionEngine);
+                        RET_ASSERT_ERR(RtErr::ExecutionEngine);
                     }
                 }
                 else
@@ -451,7 +455,7 @@ RtResult<int32_t> SystemValueType::internal_get_hash_code(vm::RtObject* obj, vm:
 
 /// @icall: System.ValueType::InternalGetHashCode(System.Object,System.Object[]&)
 static RtResultVoid internal_get_hash_code_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                   const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                   const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     auto obj = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     auto uncomputed_field_objs_ptr = EvalStackOp::get_param<vm::RtArray**>(params, 1);
@@ -461,14 +465,18 @@ static RtResultVoid internal_get_hash_code_invoker(metadata::RtManagedMethodPoin
     RET_VOID_OK();
 }
 
-static vm::InternalCallEntry s_internal_call_entries[] = {
-    {"System.ValueType::InternalEquals(System.Object,System.Object,System.Object[]&)", nullptr, internal_equals_invoker},
-    {"System.ValueType::InternalGetHashCode(System.Object,System.Object[]&)", nullptr, internal_get_hash_code_invoker},
+static vm::InternalCallEntry s_internal_call_entries_system_valuetype[] = {
+    {"System.ValueType::InternalEquals(System.Object,System.Object,System.Object[]&)", (vm::InternalCallFunction)&SystemValueType::internal_equals,
+     internal_equals_invoker},
+    {"System.ValueType::InternalGetHashCode(System.Object,System.Object[]&)", (vm::InternalCallFunction)&SystemValueType::internal_get_hash_code,
+     internal_get_hash_code_invoker},
 };
 
-utils::Span<vm::InternalCallEntry> SystemValueType::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemValueType::get_internal_call_entries() noexcept
 {
-    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries, sizeof(s_internal_call_entries) / sizeof(vm::InternalCallEntry));
+    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries_system_valuetype,
+                                              sizeof(s_internal_call_entries_system_valuetype) / sizeof(vm::InternalCallEntry));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

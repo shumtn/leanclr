@@ -1,10 +1,14 @@
 #pragma once
 
-#include "rt_managed_types.h"
+#include "vm/rt_managed_types.h"
 #include "interp_defs.h"
 #include "vm/field.h"
 
-namespace leanclr::interp::ll
+namespace leanclr
+{
+namespace interp
+{
+namespace ll
 {
 
 enum class OpCodeEnum
@@ -7373,7 +7377,6 @@ struct GetEnumLongHashCode
     uint8_t __padding_7;
 };
 
-
 //}}LOW_LEVEL_INSTRUCTION_STRUCTSS
 
 struct GeneralInst;
@@ -7400,4 +7403,6 @@ class OpCodes
     static size_t s_opsizes[static_cast<size_t>(OpCodeEnum::__Count)];
 };
 
-} // namespace leanclr::interp::ll
+} // namespace ll
+} // namespace interp
+} // namespace leanclr

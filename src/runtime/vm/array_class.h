@@ -1,9 +1,12 @@
 #pragma once
 
-#include "rt_metadata.h"
+#include "metadata/rt_metadata.h"
 
-namespace leanclr::vm
+namespace leanclr
 {
+namespace vm
+{
+
 class ArrayClass
 {
   public:
@@ -12,9 +15,10 @@ class ArrayClass
 
     // Array class creation functions
     static RtResult<metadata::RtClass*> get_array_class_from_element_type(const metadata::RtTypeSig* ele_type, uint8_t rank);
-    static RtResult<metadata::RtClass*> get_array_class_from_element_klass(metadata::RtClass* ele_klass, uint8_t rank);
+    static RtResult<metadata::RtClass*> get_array_class_from_element_klass(const metadata::RtClass* ele_klass, uint8_t rank);
     static RtResult<metadata::RtClass*> get_szarray_class_from_element_typesig(const metadata::RtTypeSig* ele_type);
-    static RtResult<metadata::RtClass*> get_szarray_class_from_element_class(metadata::RtClass* ele_class);
+    static RtResult<metadata::RtClass*> get_szarray_class_from_element_class(const metadata::RtClass* ele_class);
+    static const metadata::RtClass* get_array_variance_reduce_type(const metadata::RtClass* klass);
 
     // Setup functions
     static RtResultVoid setup_interfaces(metadata::RtClass* klass);
@@ -23,5 +27,8 @@ class ArrayClass
 
     // Interface method initialization
     static RtResultVoid initialize_array_interface_methods();
+
+    static void walk_array_classes(metadata::ClassWalkCallback callback, void* userData);
 };
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

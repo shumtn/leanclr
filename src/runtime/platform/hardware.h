@@ -1,8 +1,10 @@
 #pragma once
 
-#include "rt_base.h"
+#include "core/rt_base.h"
 
-namespace leanclr::pal
+namespace leanclr
+{
+namespace pal
 {
 class Hardware
 {
@@ -12,4 +14,5 @@ class Hardware
         return false;
     }
 };
-} // namespace leanclr::pal
+} // namespace pal
+} // namespace leanclr

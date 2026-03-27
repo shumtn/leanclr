@@ -1,10 +1,12 @@
 #pragma once
 
-#include "rt_metadata.h"
+#include "metadata/rt_metadata.h"
 #include "rt_managed_types.h"
 #include "utils/rt_span.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 class AppDomain
 {
@@ -24,6 +26,7 @@ class AppDomain
 
     static int32_t get_appdomain_id();
 
-    static utils::Span<metadata::RtModuleDef*> get_modules();
+    static utils::Span<metadata::RtModuleDef*> get_modules(RtAppDomain* this_domain);
 };
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

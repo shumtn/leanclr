@@ -3,11 +3,14 @@
 #include "icall_base.h"
 #include "vm/stacktrace.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 RtResult<bool> SystemDiagnosticsStackFrame::get_frame_info(int32_t skip, bool need_file_info, vm::RtReflectionMethod** method, int32_t* il_offset,
-                                                           int32_t* native_offset, vm::RtString** file_name, int32_t* line_number, int32_t* column_number)
+                                                           int32_t* native_offset, vm::RtString** file_name, int32_t* line_number,
+                                                           int32_t* column_number) noexcept
 {
     return vm::StackTrace::get_frame_info(skip, need_file_info, method, il_offset, native_offset, file_name, line_number, column_number);
 }
@@ -15,7 +18,7 @@ RtResult<bool> SystemDiagnosticsStackFrame::get_frame_info(int32_t skip, bool ne
 /// @icall:
 /// System.Diagnostics.StackFrame::get_frame_info(System.Int32,System.Boolean,System.Reflection.MethodBase&,System.Int32&,System.Int32&,System.String&,System.Int32&,System.Int32&)
 static RtResultVoid get_frame_info_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                           const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                           const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     auto skip = EvalStackOp::get_param<int32_t>(params, 0);
     auto need_file_info = EvalStackOp::get_param<bool>(params, 1);
@@ -32,7 +35,7 @@ static RtResultVoid get_frame_info_invoker(metadata::RtManagedMethodPointer meth
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemDiagnosticsStackFrame::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemDiagnosticsStackFrame::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Diagnostics.StackFrame::get_frame_info(System.Int32,System.Boolean,System.Reflection.MethodBase&,System.Int32&,System.Int32&,System.String&,"
@@ -42,4 +45,5 @@ utils::Span<vm::InternalCallEntry> SystemDiagnosticsStackFrame::get_internal_cal
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

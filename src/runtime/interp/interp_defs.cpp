@@ -3,7 +3,9 @@
 #include "vm/class.h"
 #include "vm/generic_class.h"
 
-namespace leanclr::interp
+namespace leanclr
+{
+namespace interp
 {
 RtEvalStackDataType InterpDefs::get_eval_stack_data_type_by_reduce_type(metadata::RtArgOrLocOrFieldReduceType reduce_type)
 {
@@ -168,7 +170,7 @@ RtResult<ReduceTypeAndSize> InterpDefs::get_reduce_type_and_size_by_typesig(cons
     }
     default:
         assert(false && "Not implemented type sig ele type");
-        RET_ERR(core::RtErr::NotImplemented);
+        RETURN_NOT_IMPLEMENTED_ERROR();
     }
     RET_OK(result);
 }
@@ -178,4 +180,5 @@ size_t InterpDefs::get_stack_object_size_by_byte_size(size_t byte_size)
     assert(byte_size <= UINT16_MAX * sizeof(RtStackObject) && "byte_size too large for stack object");
     return (byte_size + 7) / 8;
 }
-} // namespace leanclr::interp
+} // namespace interp
+} // namespace leanclr

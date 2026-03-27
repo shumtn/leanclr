@@ -12,7 +12,11 @@
 #include "utils/platform.h"
 #include "const_strs.h"
 
-namespace leanclr::interp::ll
+namespace leanclr
+{
+namespace interp
+{
+namespace ll
 {
 
 GeneralInst::GeneralInst(const hl::GeneralInst& hl_inst)
@@ -22,7 +26,7 @@ GeneralInst::GeneralInst(const hl::GeneralInst& hl_inst)
     arg3 = hl_inst.arg3;
     dst_or_ret = hl_inst.dst_or_ret;
     extra_data = hl_inst.extra_data;
-#ifndef NDEBUG
+#if LEANCLR_DEBUG
     extra_data2.value = 0;
     resolved_data_idx = 0;
     ir_offset = 0;
@@ -359,7 +363,7 @@ RtResultVoid Transformer::transform_conv(GeneralInst* ll_inst, const hl::General
         opcode = utils::Platform::select_arch(opcode_i4, opcode_i8);
         break;
     default:
-        RET_ERR(core::RtErr::NotImplemented);
+        RETURN_NOT_IMPLEMENTED_ERROR();
     }
 
     ll_inst->set_opcode(opcode);
@@ -398,7 +402,7 @@ RtResultVoid Transformer::transform_cmp_op(GeneralInst* ll_inst, const hl::Gener
 RtResult<bool> Transformer::transform_special_call_methods(GeneralInst* ll_inst, const hl::GeneralInst* hl_inst)
 {
     const metadata::RtMethodInfo* method = hl_inst->get_method();
-    metadata::RtClass* klass = method->parent;
+    const metadata::RtClass* klass = method->parent;
 
     if (!klass->image->is_corlib())
     {
@@ -417,6 +421,13 @@ RtResult<bool> Transformer::transform_special_call_methods(GeneralInst* ll_inst,
     if (klass == corlib_types.cls_object)
     {
         if (std::strcmp(method_name, STR_CTOR) == 0)
+        {
+            ll_inst->set_opcode(OpCodeEnum::Nop);
+        }
+    }
+    else if (klass == corlib_types.cls_array)
+    {
+        if (std::strcmp(method_name, "UnsafeMov") == 0)
         {
             ll_inst->set_opcode(OpCodeEnum::Nop);
         }
@@ -521,6 +532,13 @@ RtResult<bool> Transformer::transform_special_call_methods(GeneralInst* ll_inst,
             ll_inst->update_var_dst(dst);
         }
     }
+    else if (std::strcmp(klass_name, "JitHelpers") == 0)
+    {
+        if (std::strcmp(method_name, "UnsafeCast") == 0 || std::strcmp(method_name, "UnsafeEnumCast") == 0 || std::strcmp(method_name, "UnsafeEnumCastLong"))
+        {
+            ll_inst->set_opcode(OpCodeEnum::Nop);
+        }
+    }
 
     RET_OK(ll_inst->get_opcode() != OpCodeEnum::Illegal);
 }
@@ -529,7 +547,7 @@ RtResult<bool> Transformer::transform_special_newobj_methods(GeneralInst* ll_ins
 {
     ll_inst->set_opcode(OpCodeEnum::Illegal);
     const metadata::RtMethodInfo* method = hl_inst->get_method();
-    metadata::RtClass* klass = method->parent;
+    const metadata::RtClass* klass = method->parent;
     if (!klass->image->is_corlib())
     {
         RET_OK(false);
@@ -1641,7 +1659,7 @@ RtResultVoid Transformer::transform_instructions()
                     op = use_large_addressing ? OpCodeEnum::LdfldAnyLarge : OpCodeEnum::LdfldAny;
                     break;
                 default:
-                    RET_ERR(core::RtErr::NotImplemented);
+                    RETURN_NOT_IMPLEMENTED_ERROR();
                 }
                 ll_inst->set_opcode(op);
                 break;
@@ -1719,7 +1737,7 @@ RtResultVoid Transformer::transform_instructions()
                     op = use_large_addressing ? OpCodeEnum::LdvfldAnyLarge : OpCodeEnum::LdvfldAny;
                     break;
                 default:
-                    RET_ERR(core::RtErr::NotImplemented);
+                    RETURN_NOT_IMPLEMENTED_ERROR();
                 }
 
                 if (ll_inst->get_field_offset() == 0 && ll_inst->get_var_src_eval_stack_idx() == ll_inst->get_var_dst_eval_stack_idx())
@@ -1820,7 +1838,7 @@ RtResultVoid Transformer::transform_instructions()
                     op = use_large_addressing ? OpCodeEnum::StfldAnyLarge : OpCodeEnum::StfldAny;
                     break;
                 default:
-                    RET_ERR(core::RtErr::NotImplemented);
+                    RETURN_NOT_IMPLEMENTED_ERROR();
                 }
                 ll_inst->set_opcode(op);
                 break;
@@ -1860,7 +1878,7 @@ RtResultVoid Transformer::transform_instructions()
                     op = OpCodeEnum::LdsfldAny;
                     break;
                 default:
-                    RET_ERR(core::RtErr::NotImplemented);
+                    RETURN_NOT_IMPLEMENTED_ERROR();
                 }
                 ll_inst->set_opcode(op);
                 setup_inst_resolved_data(ll_inst, field);
@@ -1913,7 +1931,7 @@ RtResultVoid Transformer::transform_instructions()
                     op = OpCodeEnum::StsfldAny;
                     break;
                 default:
-                    RET_ERR(core::RtErr::NotImplemented);
+                    RETURN_NOT_IMPLEMENTED_ERROR();
                 }
                 ll_inst->set_opcode(op);
                 setup_inst_resolved_data(ll_inst, field);
@@ -1972,9 +1990,13 @@ RtResultVoid Transformer::transform_instructions()
                 break;
             }
             case hl::OpCodeEnum::Calli:
+            {
                 ll_inst->set_opcode(OpCodeEnum::CalliInterp);
-                setup_inst_method(ll_inst, hl_inst);
+                setup_inst_resolved_data(ll_inst, hl_inst->get_method_sig());
+                // ll_inst->set_frame_base(hl_inst->get_frame_base());
+                //  method_idx stores in arg3, it has been setup on start.
                 break;
+            }
             case hl::OpCodeEnum::NewObj:
             {
                 const metadata::RtMethodInfo* method = hl_inst->get_method();
@@ -2110,7 +2132,7 @@ RtResultVoid Transformer::transform_instructions()
                 break;
             }
             default:
-                RET_ERR(core::RtErr::NotImplemented);
+                RETURN_NOT_IMPLEMENTED_ERROR();
             }
 
             if (add && ll_inst->get_opcode() != OpCodeEnum::Nop)
@@ -2216,7 +2238,7 @@ RtResultVoid Transformer::build_codes(RtInterpMethodInfo* interp_method)
     size_t total_ir_count = 0;
     for (BasicBlock* cur_bb = _bb_head; cur_bb != nullptr; cur_bb = cur_bb->next_bb)
     {
-        cur_bb->ir_offset = total_ir_size;
+        cur_bb->ir_offset = static_cast<int32_t>(total_ir_size);
         total_ir_count += cur_bb->insts.size();
         for (const GeneralInst* inst : cur_bb->insts)
         {
@@ -2297,4 +2319,6 @@ RtResult<const RtInterpMethodInfo*> Transformer::build_interp_method_info()
     RET_OK(interp_method);
 }
 
-} // namespace leanclr::interp::ll
+} // namespace ll
+} // namespace interp
+} // namespace leanclr

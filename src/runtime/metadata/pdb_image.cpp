@@ -3,7 +3,9 @@
 #include "utils/string_builder.h"
 #include "log/internal_logger.h"
 
-namespace leanclr::metadata
+namespace leanclr
+{
+namespace metadata
 {
 
 constexpr uint32_t kHiddenLine = 0xFEEFEE;
@@ -53,8 +55,8 @@ void PdbImage::get_debug_info_for_method(const RtMethodInfo* method_info, int32_
         *column_number = -1;
         return;
     }
-    *line_number = seqPoint->line;
-    *column_number = seqPoint->column;
+    *line_number = static_cast<int32_t>(seqPoint->line);
+    *column_number = static_cast<int32_t>(seqPoint->column);
     auto ret_doc_name = GetDocumentName(methodData->document);
     if (ret_doc_name.is_ok())
     {
@@ -114,7 +116,7 @@ RtResult<const PdbImage::SymbolDocumentData*> PdbImage::GetDocument(metadata::En
     auto opt_document = _cli_image.read_document(rowIndex);
     if (!opt_document)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     auto& document = opt_document.value();
@@ -124,7 +126,7 @@ RtResult<const PdbImage::SymbolDocumentData*> PdbImage::GetDocument(metadata::En
     uint8_t sep;
     if (!reader.try_read_byte(sep))
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     utils::StringBuilder sourceFileNames;
@@ -133,12 +135,12 @@ RtResult<const PdbImage::SymbolDocumentData*> PdbImage::GetDocument(metadata::En
     {
         if (sep && !first)
         {
-            sourceFileNames.append_char((char)sep);
+            sourceFileNames.append_char(sep);
         }
         uint32_t sourceFileNameIndex;
         if (!reader.try_read_compressed_uint32(sourceFileNameIndex))
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         if (sourceFileNameIndex > 0)
         {
@@ -171,7 +173,7 @@ RtResult<const PdbImage::SymbolMethodDefData*> PdbImage::GetMethodDataFromCache(
     auto opt_row = _cli_image.read_method_debug_information(rowIndex);
     if (!opt_row)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     // see https://github.com/dotnet/runtime/blob/main/docs/design/specs/PortablePdb-Metadata.md
@@ -183,7 +185,7 @@ RtResult<const PdbImage::SymbolMethodDefData*> PdbImage::GetMethodDataFromCache(
         uint32_t localSignature;
         if (!reader.try_read_compressed_uint32(localSignature))
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         uint32_t document;
         if (smb.document)
@@ -194,7 +196,7 @@ RtResult<const PdbImage::SymbolMethodDefData*> PdbImage::GetMethodDataFromCache(
         {
             if (!reader.try_read_compressed_uint32(document))
             {
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
         }
         int32_t prevStartLine = -1;
@@ -204,21 +206,21 @@ RtResult<const PdbImage::SymbolMethodDefData*> PdbImage::GetMethodDataFromCache(
             uint32_t deltaIlOffset;
             if (!reader.try_read_compressed_uint32(deltaIlOffset))
             {
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             // document record
             if (deltaIlOffset == 0 && !sequencePoints.empty())
             {
                 if (!reader.try_read_compressed_uint32(document))
                 {
-                    RET_ERR(RtErr::BadImageFormat);
+                    RET_ASSERT_ERR(RtErr::BadImageFormat);
                 }
                 continue;
             }
             uint32_t deltaLines;
             if (!reader.try_read_compressed_uint32(deltaLines))
             {
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             int32_t deltaColumns;
             if (deltaLines == 0)
@@ -226,7 +228,7 @@ RtResult<const PdbImage::SymbolMethodDefData*> PdbImage::GetMethodDataFromCache(
                 uint32_t temp;
                 if (!reader.try_read_compressed_uint32(temp))
                 {
-                    RET_ERR(RtErr::BadImageFormat);
+                    RET_ASSERT_ERR(RtErr::BadImageFormat);
                 }
                 deltaColumns = static_cast<int32_t>(temp);
             }
@@ -234,11 +236,12 @@ RtResult<const PdbImage::SymbolMethodDefData*> PdbImage::GetMethodDataFromCache(
             {
                 if (!reader.try_read_compressed_int32(deltaColumns))
                 {
-                    RET_ERR(RtErr::BadImageFormat);
+                    RET_ASSERT_ERR(RtErr::BadImageFormat);
                 }
             }
 
-            uint32_t ilOffset = sequencePoints.empty() ? deltaIlOffset : sequencePoints.back().ilOffset + deltaIlOffset;
+            const int32_t ilOffset =
+                sequencePoints.empty() ? static_cast<int32_t>(deltaIlOffset) : sequencePoints.back().ilOffset + static_cast<int32_t>(deltaIlOffset);
 
             SymbolSequencePoint ssp = {};
             ssp.document = document;
@@ -257,14 +260,14 @@ RtResult<const PdbImage::SymbolMethodDefData*> PdbImage::GetMethodDataFromCache(
                     uint32_t tempPrevStartLine;
                     if (!reader.try_read_compressed_uint32(tempPrevStartLine))
                     {
-                        RET_ERR(RtErr::BadImageFormat);
+                        RET_ASSERT_ERR(RtErr::BadImageFormat);
                     }
                     prevStartLine = static_cast<int32_t>(tempPrevStartLine);
 
                     uint32_t tempPrevStartColumn;
                     if (!reader.try_read_compressed_uint32(tempPrevStartColumn))
                     {
-                        RET_ERR(RtErr::BadImageFormat);
+                        RET_ASSERT_ERR(RtErr::BadImageFormat);
                     }
                     prevStartColumn = static_cast<int32_t>(tempPrevStartColumn);
                 }
@@ -273,20 +276,20 @@ RtResult<const PdbImage::SymbolMethodDefData*> PdbImage::GetMethodDataFromCache(
                     int32_t temp_delta_start_line;
                     if (!reader.try_read_compressed_int32(temp_delta_start_line))
                     {
-                        RET_ERR(RtErr::BadImageFormat);
+                        RET_ASSERT_ERR(RtErr::BadImageFormat);
                     }
                     prevStartLine += temp_delta_start_line;
                     int32_t temp_delta_start_column;
                     if (!reader.try_read_compressed_int32(temp_delta_start_column))
                     {
-                        RET_ERR(RtErr::BadImageFormat);
+                        RET_ASSERT_ERR(RtErr::BadImageFormat);
                     }
                     prevStartColumn += temp_delta_start_column;
                 }
-                ssp.line = prevStartLine;
-                ssp.endLine = prevStartLine + deltaLines;
-                ssp.column = prevStartColumn;
-                ssp.endColumn = prevStartColumn + deltaColumns;
+                ssp.line = static_cast<uint32_t>(prevStartLine);
+                ssp.endLine = static_cast<uint32_t>(prevStartLine) + deltaLines;
+                ssp.column = static_cast<uint32_t>(prevStartColumn);
+                ssp.endColumn = static_cast<uint32_t>(static_cast<int64_t>(prevStartColumn) + static_cast<int64_t>(deltaColumns));
             }
             sequencePoints.push_back(ssp);
         }
@@ -307,4 +310,5 @@ RtResult<const PdbImage::SymbolMethodDefData*> PdbImage::GetMethodDataFromCache(
     _methods.insert({methodToken, methodData});
     return methodData;
 }
-} // namespace leanclr::metadata
+} // namespace metadata
+} // namespace leanclr

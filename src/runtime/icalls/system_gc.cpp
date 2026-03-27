@@ -3,17 +3,19 @@
 #include "icall_base.h"
 #include "vm/gc.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResult<vm::RtObject*> SystemGC::get_ephemeron_tombstone()
+RtResult<vm::RtObject*> SystemGC::get_ephemeron_tombstone() noexcept
 {
     RET_OK(vm::GC::get_ephemeron_tombstone());
 }
 
 /// @icall: System.GC::get_ephemeron_tombstone
 static RtResultVoid get_ephemeron_tombstone_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                    const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                    const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -23,7 +25,7 @@ static RtResultVoid get_ephemeron_tombstone_invoker(metadata::RtManagedMethodPoi
     RET_VOID_OK();
 }
 
-RtResultVoid SystemGC::register_ephemeron_array(vm::RtObject* arr)
+RtResultVoid SystemGC::register_ephemeron_array(vm::RtObject* arr) noexcept
 {
     vm::GC::register_ephemeron_array(arr);
     RET_VOID_OK();
@@ -31,7 +33,7 @@ RtResultVoid SystemGC::register_ephemeron_array(vm::RtObject* arr)
 
 /// @icall: System.GC::register_ephemeron_array
 static RtResultVoid register_ephemeron_array_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                     const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                     const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -41,14 +43,14 @@ static RtResultVoid register_ephemeron_array_invoker(metadata::RtManagedMethodPo
     RET_VOID_OK();
 }
 
-RtResult<int32_t> SystemGC::get_collection_count(int32_t generation)
+RtResult<int32_t> SystemGC::get_collection_count(int32_t generation) noexcept
 {
     RET_OK(vm::GC::get_collection_count(generation));
 }
 
 /// @icall: System.GC::GetCollectionCount(System.Int32)
 static RtResultVoid get_collection_count_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                 const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                 const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -58,14 +60,14 @@ static RtResultVoid get_collection_count_invoker(metadata::RtManagedMethodPointe
     RET_VOID_OK();
 }
 
-RtResult<int32_t> SystemGC::get_max_generation()
+RtResult<int32_t> SystemGC::get_max_generation() noexcept
 {
     RET_OK(vm::GC::get_max_generation());
 }
 
 /// @icall: System.GC::GetMaxGeneration()
 static RtResultVoid get_max_generation_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                               const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                               const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -75,7 +77,7 @@ static RtResultVoid get_max_generation_invoker(metadata::RtManagedMethodPointer 
     RET_VOID_OK();
 }
 
-RtResultVoid SystemGC::internal_collect(int32_t generation)
+RtResultVoid SystemGC::internal_collect(int32_t generation) noexcept
 {
     vm::GC::internal_collect(generation);
     RET_VOID_OK();
@@ -83,7 +85,7 @@ RtResultVoid SystemGC::internal_collect(int32_t generation)
 
 /// @icall: System.GC::InternalCollect(System.Int32)
 static RtResultVoid internal_collect_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                             const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                             const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -93,7 +95,7 @@ static RtResultVoid internal_collect_invoker(metadata::RtManagedMethodPointer me
     RET_VOID_OK();
 }
 
-RtResultVoid SystemGC::record_pressure(int64_t bytes)
+RtResultVoid SystemGC::record_pressure(int64_t bytes) noexcept
 {
     vm::GC::record_pressure(bytes);
     RET_VOID_OK();
@@ -101,7 +103,7 @@ RtResultVoid SystemGC::record_pressure(int64_t bytes)
 
 /// @icall: System.GC::RecordPressure(System.Int64)
 static RtResultVoid record_pressure_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -111,14 +113,14 @@ static RtResultVoid record_pressure_invoker(metadata::RtManagedMethodPointer met
     RET_VOID_OK();
 }
 
-RtResult<int64_t> SystemGC::get_allocated_bytes_for_current_thread()
+RtResult<int64_t> SystemGC::get_allocated_bytes_for_current_thread() noexcept
 {
     RET_OK(vm::GC::get_allocated_bytes_for_current_thread());
 }
 
 /// @icall: System.GC::GetAllocatedBytesForCurrentThread()
 static RtResultVoid get_allocated_bytes_for_current_thread_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                                   const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                                   const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -128,14 +130,14 @@ static RtResultVoid get_allocated_bytes_for_current_thread_invoker(metadata::RtM
     RET_VOID_OK();
 }
 
-RtResult<int32_t> SystemGC::get_generation(vm::RtObject* obj)
+RtResult<int32_t> SystemGC::get_generation(vm::RtObject* obj) noexcept
 {
     RET_OK(vm::GC::get_generation(obj));
 }
 
 /// @icall: System.GC::GetGeneration(System.Object)
 static RtResultVoid get_generation_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                           const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                           const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -145,7 +147,7 @@ static RtResultVoid get_generation_invoker(metadata::RtManagedMethodPointer meth
     RET_VOID_OK();
 }
 
-RtResultVoid SystemGC::wait_for_pending_finalizers()
+RtResultVoid SystemGC::wait_for_pending_finalizers() noexcept
 {
     vm::GC::wait_for_pending_finalizers();
     RET_VOID_OK();
@@ -153,7 +155,7 @@ RtResultVoid SystemGC::wait_for_pending_finalizers()
 
 /// @icall: System.GC::WaitForPendingFinalizers()
 static RtResultVoid wait_for_pending_finalizers_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                        const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                        const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -163,7 +165,7 @@ static RtResultVoid wait_for_pending_finalizers_invoker(metadata::RtManagedMetho
     RET_VOID_OK();
 }
 
-RtResultVoid SystemGC::suppress_finalize(vm::RtObject* obj)
+RtResultVoid SystemGC::suppress_finalize(vm::RtObject* obj) noexcept
 {
     vm::GC::suppress_finalize(obj);
     RET_VOID_OK();
@@ -171,7 +173,7 @@ RtResultVoid SystemGC::suppress_finalize(vm::RtObject* obj)
 
 /// @icall: System.GC::_SuppressFinalize(System.Object)
 static RtResultVoid suppress_finalize_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                              const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                              const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -181,7 +183,7 @@ static RtResultVoid suppress_finalize_invoker(metadata::RtManagedMethodPointer m
     RET_VOID_OK();
 }
 
-RtResultVoid SystemGC::reregister_for_finalize(vm::RtObject* obj)
+RtResultVoid SystemGC::reregister_for_finalize(vm::RtObject* obj) noexcept
 {
     vm::GC::reregister_for_finalize(obj);
     RET_VOID_OK();
@@ -189,7 +191,7 @@ RtResultVoid SystemGC::reregister_for_finalize(vm::RtObject* obj)
 
 /// @icall: System.GC::_ReRegisterForFinalize(System.Object)
 static RtResultVoid reregister_for_finalize_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                    const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                    const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -199,14 +201,14 @@ static RtResultVoid reregister_for_finalize_invoker(metadata::RtManagedMethodPoi
     RET_VOID_OK();
 }
 
-RtResult<int64_t> SystemGC::get_total_memory(bool force_full_collection)
+RtResult<int64_t> SystemGC::get_total_memory(bool force_full_collection) noexcept
 {
     RET_OK(vm::GC::get_total_memory(force_full_collection));
 }
 
 /// @icall: System.GC::GetTotalMemory(System.Boolean)
 static RtResultVoid get_total_memory_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                             const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                             const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -216,7 +218,7 @@ static RtResultVoid get_total_memory_invoker(metadata::RtManagedMethodPointer me
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemGC::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemGC::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.GC::get_ephemeron_tombstone", (vm::InternalCallFunction)&SystemGC::get_ephemeron_tombstone, get_ephemeron_tombstone_invoker},
@@ -236,4 +238,5 @@ utils::Span<vm::InternalCallEntry> SystemGC::get_internal_call_entries()
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

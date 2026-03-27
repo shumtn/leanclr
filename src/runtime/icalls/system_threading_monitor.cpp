@@ -2,43 +2,47 @@
 #include "icall_base.h"
 #include "vm/monitor.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResultVoid SystemThreadingMonitor::enter(vm::RtObject* monitor)
+RtResultVoid SystemThreadingMonitor::enter(vm::RtObject* monitor) noexcept
 {
     vm::Monitor::enter(monitor);
     RET_VOID_OK();
 }
 
 /// @icall: System.Threading.Monitor::Enter
-static RtResultVoid enter_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params, interp::RtStackObject*)
+static RtResultVoid enter_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
+                                  interp::RtStackObject*) noexcept
 {
     auto monitor = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     return SystemThreadingMonitor::enter(monitor);
 }
 
-RtResultVoid SystemThreadingMonitor::exit(vm::RtObject* monitor)
+RtResultVoid SystemThreadingMonitor::exit(vm::RtObject* monitor) noexcept
 {
     vm::Monitor::exit(monitor);
     RET_VOID_OK();
 }
 
 /// @icall: System.Threading.Monitor::Exit
-static RtResultVoid exit_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params, interp::RtStackObject*)
+static RtResultVoid exit_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
+                                 interp::RtStackObject*) noexcept
 {
     auto monitor = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     return SystemThreadingMonitor::exit(monitor);
 }
 
-RtResult<bool> SystemThreadingMonitor::monitor_test_synchronized(vm::RtObject* monitor)
+RtResult<bool> SystemThreadingMonitor::monitor_test_synchronized(vm::RtObject* monitor) noexcept
 {
     RET_OK(vm::Monitor::monitor_test_synchronized(monitor));
 }
 
 /// @icall: System.Threading.Monitor::Monitor_test_synchronised
 static RtResultVoid monitor_test_synchronized_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                                      interp::RtStackObject* ret)
+                                                      interp::RtStackObject* ret) noexcept
 {
     auto monitor = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, result, SystemThreadingMonitor::monitor_test_synchronized(monitor));
@@ -46,7 +50,7 @@ static RtResultVoid monitor_test_synchronized_invoker(metadata::RtManagedMethodP
     RET_VOID_OK();
 }
 
-RtResultVoid SystemThreadingMonitor::monitor_pulse(vm::RtObject* monitor)
+RtResultVoid SystemThreadingMonitor::monitor_pulse(vm::RtObject* monitor) noexcept
 {
     vm::Monitor::monitor_pulse(monitor);
     RET_VOID_OK();
@@ -54,13 +58,13 @@ RtResultVoid SystemThreadingMonitor::monitor_pulse(vm::RtObject* monitor)
 
 /// @icall: System.Threading.Monitor::Monitor_pulse
 static RtResultVoid monitor_pulse_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                          interp::RtStackObject*)
+                                          interp::RtStackObject*) noexcept
 {
     auto monitor = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     return SystemThreadingMonitor::monitor_pulse(monitor);
 }
 
-RtResultVoid SystemThreadingMonitor::monitor_pulse_all(vm::RtObject* monitor)
+RtResultVoid SystemThreadingMonitor::monitor_pulse_all(vm::RtObject* monitor) noexcept
 {
     vm::Monitor::monitor_pulse_all(monitor);
     RET_VOID_OK();
@@ -68,20 +72,20 @@ RtResultVoid SystemThreadingMonitor::monitor_pulse_all(vm::RtObject* monitor)
 
 /// @icall: System.Threading.Monitor::Monitor_pulse_all
 static RtResultVoid monitor_pulse_all_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                              interp::RtStackObject*)
+                                              interp::RtStackObject*) noexcept
 {
     auto monitor = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     return SystemThreadingMonitor::monitor_pulse_all(monitor);
 }
 
-RtResult<bool> SystemThreadingMonitor::monitor_wait(vm::RtObject* monitor, int32_t milliseconds_timeout)
+RtResult<bool> SystemThreadingMonitor::monitor_wait(vm::RtObject* monitor, int32_t milliseconds_timeout) noexcept
 {
     RET_OK(vm::Monitor::monitor_wait(monitor, milliseconds_timeout));
 }
 
 /// @icall: System.Threading.Monitor::Monitor_wait
 static RtResultVoid monitor_wait_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                         interp::RtStackObject* ret)
+                                         interp::RtStackObject* ret) noexcept
 {
     auto monitor = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     auto milliseconds_timeout = EvalStackOp::get_param<int32_t>(params, 1);
@@ -90,7 +94,7 @@ static RtResultVoid monitor_wait_invoker(metadata::RtManagedMethodPointer, const
     RET_VOID_OK();
 }
 
-RtResultVoid SystemThreadingMonitor::monitor_try_enter_with_atomic_var(vm::RtObject* monitor, int32_t timeout, bool* lock_taken)
+RtResultVoid SystemThreadingMonitor::monitor_try_enter_with_atomic_var(vm::RtObject* monitor, int32_t timeout, bool* lock_taken) noexcept
 {
     vm::Monitor::monitor_try_enter_with_atomic_var(monitor, timeout, lock_taken);
     RET_VOID_OK();
@@ -98,7 +102,7 @@ RtResultVoid SystemThreadingMonitor::monitor_try_enter_with_atomic_var(vm::RtObj
 
 /// @icall: System.Threading.Monitor::Monitor_try_enter_with_atomic_var
 static RtResultVoid monitor_try_enter_with_atomic_var_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*,
-                                                              const interp::RtStackObject* params, interp::RtStackObject*)
+                                                              const interp::RtStackObject* params, interp::RtStackObject*) noexcept
 {
     auto monitor = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     auto timeout = EvalStackOp::get_param<int32_t>(params, 1);
@@ -106,14 +110,14 @@ static RtResultVoid monitor_try_enter_with_atomic_var_invoker(metadata::RtManage
     return SystemThreadingMonitor::monitor_try_enter_with_atomic_var(monitor, timeout, lock_taken);
 }
 
-RtResult<bool> SystemThreadingMonitor::monitor_test_owner(vm::RtObject* monitor)
+RtResult<bool> SystemThreadingMonitor::monitor_test_owner(vm::RtObject* monitor) noexcept
 {
     RET_OK(vm::Monitor::monitor_test_owner(monitor));
 }
 
 /// @icall: System.Threading.Monitor::Monitor_test_owner
 static RtResultVoid monitor_test_owner_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                               interp::RtStackObject* ret)
+                                               interp::RtStackObject* ret) noexcept
 {
     auto monitor = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, result, SystemThreadingMonitor::monitor_test_owner(monitor));
@@ -121,7 +125,7 @@ static RtResultVoid monitor_test_owner_invoker(metadata::RtManagedMethodPointer,
     RET_VOID_OK();
 }
 
-static vm::InternalCallEntry s_internal_call_entries[] = {
+static vm::InternalCallEntry s_internal_call_entries_system_threading_monitor[] = {
     {"System.Threading.Monitor::Enter", (vm::InternalCallFunction)&SystemThreadingMonitor::enter, enter_invoker},
     {"System.Threading.Monitor::Exit", (vm::InternalCallFunction)&SystemThreadingMonitor::exit, exit_invoker},
     {"System.Threading.Monitor::Monitor_test_synchronised", (vm::InternalCallFunction)&SystemThreadingMonitor::monitor_test_synchronized,
@@ -134,9 +138,11 @@ static vm::InternalCallEntry s_internal_call_entries[] = {
     {"System.Threading.Monitor::Monitor_test_owner", (vm::InternalCallFunction)&SystemThreadingMonitor::monitor_test_owner, monitor_test_owner_invoker},
 };
 
-utils::Span<vm::InternalCallEntry> SystemThreadingMonitor::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemThreadingMonitor::get_internal_call_entries() noexcept
 {
-    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries, sizeof(s_internal_call_entries) / sizeof(vm::InternalCallEntry));
+    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries_system_threading_monitor,
+                                              sizeof(s_internal_call_entries_system_threading_monitor) / sizeof(vm::InternalCallEntry));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

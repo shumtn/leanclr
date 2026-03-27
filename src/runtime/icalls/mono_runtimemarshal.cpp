@@ -3,10 +3,12 @@
 #include "icall_base.h"
 #include "alloc/general_allocation.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResultVoid MonoRuntimeMarshal::free_assembly_name(metadata::RtMonoAssemblyName* aname, bool free_struct)
+RtResultVoid MonoRuntimeMarshal::free_assembly_name(metadata::RtMonoAssemblyName* aname, bool free_struct) noexcept
 {
     alloc::GeneralAllocation::free(const_cast<char*>(aname->name));
     alloc::GeneralAllocation::free(const_cast<char*>(aname->culture));
@@ -20,7 +22,7 @@ RtResultVoid MonoRuntimeMarshal::free_assembly_name(metadata::RtMonoAssemblyName
 
 /// @icall: Mono.RuntimeMarshal::FreeAssemblyName(Mono.MonoAssemblyName&,System.Boolean)
 static RtResultVoid free_assembly_name_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                               const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                               const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)ret;
     auto aname = EvalStackOp::get_param<metadata::RtMonoAssemblyName*>(params, 0);
@@ -30,7 +32,7 @@ static RtResultVoid free_assembly_name_invoker(metadata::RtManagedMethodPointer 
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> MonoRuntimeMarshal::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> MonoRuntimeMarshal::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"Mono.RuntimeMarshal::FreeAssemblyName(Mono.MonoAssemblyName&,System.Boolean)", (vm::InternalCallFunction)&MonoRuntimeMarshal::free_assembly_name,
@@ -39,4 +41,5 @@ utils::Span<vm::InternalCallEntry> MonoRuntimeMarshal::get_internal_call_entries
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

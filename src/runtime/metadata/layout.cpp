@@ -4,7 +4,9 @@
 #include "vm/generic_class.h"
 #include "metadata/module_def.h"
 
-namespace leanclr::metadata
+namespace leanclr
+{
+namespace metadata
 {
 using namespace leanclr::utils;
 
@@ -85,18 +87,19 @@ RtResult<SizeAndAlignment> Layout::get_field_size_and_alignment(RtTypeSig* typeS
         result = {vm::RT_TYPED_REFERENCE_SIZE, static_cast<uint32_t>(PTR_ALIGN)};
         break;
     default:
-        RET_ERR(RtErr::NotImplemented);
+        RETURN_NOT_IMPLEMENTED_ERROR();
     }
 
     RET_OK(result);
 }
 
 // Compute layout for fields with sequential layout
-RtResult<SizeAndAlignment> Layout::compute_layout(utils::Vector<const RtFieldInfo*>& fields, uint32_t parentSize, uint8_t parentAlignment, uint8_t packing)
+RtResult<SizeAndAlignment> Layout::compute_layout(utils::Vector<const RtFieldInfo*>& fields, int32_t first_field_index_of_cur_klass, uint8_t packing)
 {
-    uint32_t offset = parentSize;
-    uint8_t max_alignment = parentAlignment;
+    uint32_t offset = 0;
+    uint8_t max_alignment = 1;
 
+    int32_t field_index = 0;
     for (const RtFieldInfo* field : fields)
     {
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(SizeAndAlignment, field_info, get_field_size_and_alignment(const_cast<RtTypeSig*>(field->type_sig)));
@@ -105,10 +108,19 @@ RtResult<SizeAndAlignment> Layout::compute_layout(utils::Vector<const RtFieldInf
             (packing != 0) ? std::min(static_cast<uint8_t>(field_info.alignment), packing) : static_cast<uint8_t>(field_info.alignment);
 
         offset = static_cast<uint32_t>(MemOp::align_up(offset, effective_alignment));
-        const_cast<RtFieldInfo*>(field)->offset = offset;
+
+        if (field_index >= first_field_index_of_cur_klass)
+        {
+            const_cast<RtFieldInfo*>(field)->offset = offset;
+        }
+        else
+        {
+            assert(field->offset == offset && "Field offset mismatch for inherited field with sequential layout");
+        }
 
         offset += field_info.size;
         max_alignment = std::max(max_alignment, effective_alignment);
+        ++field_index;
     }
 
     offset = static_cast<uint32_t>(MemOp::align_up(offset, max_alignment));
@@ -133,7 +145,7 @@ RtResult<SizeAndAlignment> Layout::compute_explicit_layout(RtModuleDef* mod, uti
         auto field_offset_opt = mod->get_field_offset(field->token);
         if (!field_offset_opt.has_value())
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
 
         uint32_t offset = field_offset_opt.value();
@@ -142,9 +154,11 @@ RtResult<SizeAndAlignment> Layout::compute_explicit_layout(RtModuleDef* mod, uti
         max_size = std::max(max_size, offset + field_info.size);
         max_alignment = std::max(max_alignment, effective_alignment);
     }
+    max_size = static_cast<uint32_t>(MemOp::align_up(max_size, max_alignment));
 
     SizeAndAlignment result = {max_size, max_alignment};
     RET_OK(result);
 }
 
-} // namespace leanclr::metadata
+} // namespace metadata
+} // namespace leanclr

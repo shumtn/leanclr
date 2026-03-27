@@ -1,9 +1,0 @@
-{
-  "profiles": {
-    "LeanAOT": {
-      "commandName": "Project",
-      "commandLineArgs": "-o samples\\simple-aot\\cpp -d libraries\\dotnetframework4.x -d leanaot\\Test\\bin\\Debug -a mscorlib -a Test",
-      "workingDirectory": "$(SolutionDir).."
-    }
-  }
-}

@@ -3,12 +3,14 @@
 #include "vm/customattribute.h"
 #include "utils/binary_reader.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 RtResultVoid SystemReflectionCustomAttributeData::resolve_arguments_internal(vm::RtReflectionMethod* ctor, vm::RtReflectionAssembly* ctor_assembly,
                                                                              intptr_t data, uint32_t data_length, vm::RtArray** typed_arg_arr_ptr,
-                                                                             vm::RtArray** named_arg_arr_ptr)
+                                                                             vm::RtArray** named_arg_arr_ptr) noexcept
 {
     const void* data_ptr = reinterpret_cast<const void*>(data);
     utils::BinaryReader reader(data_ptr, static_cast<size_t>(data_length));
@@ -21,7 +23,7 @@ RtResultVoid SystemReflectionCustomAttributeData::resolve_arguments_internal(vm:
 /// @icall:
 /// System.Reflection.CustomAttributeData::ResolveArgumentsInternal(System.Reflection.ConstructorInfo,System.Reflection.Assembly,System.IntPtr,System.UInt32,System.Object[]&,System.Object[]&)
 static RtResultVoid resolve_arguments_internal_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                       const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                       const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -38,7 +40,7 @@ static RtResultVoid resolve_arguments_internal_invoker(metadata::RtManagedMethod
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemReflectionCustomAttributeData::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemReflectionCustomAttributeData::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Reflection.CustomAttributeData::ResolveArgumentsInternal(System.Reflection.ConstructorInfo,System.Reflection.Assembly,System.IntPtr,System."
@@ -48,4 +50,5 @@ utils::Span<vm::InternalCallEntry> SystemReflectionCustomAttributeData::get_inte
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

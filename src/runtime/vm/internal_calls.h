@@ -1,6 +1,6 @@
 #pragma once
 
-#include <optional>
+#include "core/stl_compat.h"
 
 #include "rt_managed_types.h"
 #include "utils/hashmap.h"
@@ -10,7 +10,9 @@
 #include "rt_exception.h"
 #include "interp/eval_stack_op.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 using InternalCallFunction = metadata::RtManagedMethodPointer;
@@ -42,6 +44,9 @@ class InternalCalls
     // Initialize internal calls
     static void initialize();
 
+    static void register_lite_internal_call(const char* name, InternalCallFunction func);
+    static InternalCallFunction get_lite_internal_call(const char* name);
+
     // Register/get internal call functions
     static void register_internal_call(const char* name, InternalCallFunction func, InternalCallInvoker invoker);
     static const InternalCallRegistry* get_internal_call(const char* name);
@@ -57,4 +62,5 @@ class InternalCalls
     static InternalCallInvoker get_internal_call_invoker_by_id_unchecked(uint16_t id);
 };
 
-}; // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

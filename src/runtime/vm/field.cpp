@@ -14,7 +14,9 @@
 #include "metadata/generic_metadata.h"
 #include "metadata/metadata_const.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 // Check if field is instance field (not static)
@@ -74,6 +76,11 @@ bool Field::is_private(const metadata::RtFieldInfo* field)
     return visibility == static_cast<uint32_t>(metadata::RtFieldAttribute::Private);
 }
 
+bool Field::has_field_marshal(const metadata::RtFieldInfo* field)
+{
+    return (field->flags & static_cast<uint32_t>(metadata::RtFieldAttribute::HasFieldMarshal)) != 0;
+}
+
 // Inflate field with generic context
 RtResult<const metadata::RtFieldInfo*> Field::inflate_field(const metadata::RtFieldInfo* field, const metadata::RtGenericContext* generic_context)
 {
@@ -90,8 +97,20 @@ RtResult<const metadata::RtFieldInfo*> Field::inflate_field(const metadata::RtFi
     RET_OK(&inflatedClass->fields[fieldIndex]);
 }
 
+uint32_t Field::get_field_offset_includes_object_header_for_all_type(const metadata::RtFieldInfo* field)
+{
+    if (is_instance(field))
+    {
+        return field->offset + vm::RT_OBJECT_HEADER_SIZE;
+    }
+    else
+    {
+        return field->offset;
+    }
+}
+
 // Get field offset including object header for reference types
-size_t Field::get_field_offset_includes_object_header_for_reference_type(const metadata::RtFieldInfo* field)
+uint32_t Field::get_field_offset_includes_object_header_for_reference_type(const metadata::RtFieldInfo* field)
 {
     if (is_instance(field) && Class::is_reference_type(static_cast<metadata::RtClass*>(field->parent)))
     {
@@ -104,13 +123,14 @@ size_t Field::get_field_offset_includes_object_header_for_reference_type(const m
 }
 
 // Get field offset including object header for all types
-size_t Field::get_field_offset_includes_object_header_for_all_type(const metadata::RtFieldInfo* field)
+uint32_t Field::get_instance_field_offset_includes_object_header_for_all_type(const metadata::RtFieldInfo* field)
 {
+    assert(is_instance(field));
     return field->offset + vm::RT_OBJECT_HEADER_SIZE;
 }
 
 // Get field offset excluding object header
-size_t Field::get_field_offset_excludes_object_header_for_all_type(const metadata::RtFieldInfo* field)
+uint32_t Field::get_field_offset_excludes_object_header_for_all_type(const metadata::RtFieldInfo* field)
 {
     return field->offset;
 }
@@ -124,7 +144,7 @@ RtResult<const uint8_t*> Field::get_field_rva_data(const metadata::RtFieldInfo* 
     }
     else
     {
-        RET_ERR(RtErr::ExecutionEngine);
+        RET_ASSERT_ERR(RtErr::ExecutionEngine);
     }
 }
 
@@ -135,7 +155,7 @@ RtResult<utils::BinaryReader> Field::get_field_const_reader(const metadata::RtFi
     {
         return field->parent->image->get_const_or_default_value(field->token);
     }
-    RET_ERR(RtErr::ExecutionEngine);
+    RET_ASSERT_ERR(RtErr::ExecutionEngine);
 }
 
 RtResult<const void*> Field::get_field_const_data(const metadata::RtFieldInfo* field)
@@ -151,6 +171,18 @@ RtResult<RtObject*> Field::get_field_const_object(const metadata::RtFieldInfo* f
     return metadata::MetadataConst::decode_const_object(field->parent->image, field->token, field->type_sig);
 }
 
+RtResultVoid Field::get_instance_value(const metadata::RtFieldInfo* field, void* obj, void* value)
+{
+    assert(is_instance(field));
+
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(size_t, size, get_field_size(field));
+
+    uint8_t* target = static_cast<uint8_t*>(obj) + get_instance_field_offset_includes_object_header_for_all_type(field);
+    std::memcpy(value, target, size);
+
+    RET_VOID_OK();
+}
+
 // Set instance field value
 RtResultVoid Field::set_instance_value(const metadata::RtFieldInfo* field, void* obj, const void* value)
 {
@@ -158,13 +190,26 @@ RtResultVoid Field::set_instance_value(const metadata::RtFieldInfo* field, void*
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(size_t, size, get_field_size(field));
 
-    uint8_t* target = static_cast<uint8_t*>(obj) + field->offset;
+    uint8_t* target = static_cast<uint8_t*>(obj) + get_instance_field_offset_includes_object_header_for_all_type(field);
     std::memcpy(target, value, size);
 
     RET_VOID_OK();
 }
 
 // Set static field value
+RtResultVoid Field::get_static_value(const metadata::RtFieldInfo* field, void* value)
+{
+    if (!is_static_excluded_literal_and_rva(field))
+    {
+        RET_ERR(RtErr::FieldAccess);
+    }
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(size_t, size, get_field_size(field));
+
+    std::memcpy(value, field->parent->static_fields_data + field->offset, size);
+
+    RET_VOID_OK();
+}
+
 RtResultVoid Field::set_static_value(const metadata::RtFieldInfo* field, const void* value)
 {
     if (!is_static_excluded_literal_and_rva(field))
@@ -273,6 +318,7 @@ RtResultVoid Field::set_value_object(const metadata::RtFieldInfo* field, RtObjec
     // Get the type class for the field
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, field_klass, Class::get_class_from_typesig(field->type_sig));
 
+    // FIXME: handle gc write barrier
     if (Class::is_value_type(field_klass))
     {
         if (value == nullptr)
@@ -327,4 +373,5 @@ RtResultVoid Field::get_field_modifiers(const metadata::RtFieldInfo* field, bool
     return mod->read_member_modifier(blobReader, optional, gcc, nullptr, modifiers);
 }
 
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

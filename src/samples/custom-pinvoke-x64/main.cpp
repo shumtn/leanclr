@@ -215,7 +215,11 @@ static int run(const std::string& dll_name, const std::vector<std::string>& dll_
 
         utils::StringBuilder sb;
 
-        metadata::MetadataName::append_klass_full_name(sb, ex->klass).unwrap();
+        if (metadata::MetadataName::append_klass_full_name(sb, ex->klass).is_err())
+        {
+            std::cerr << "Failed to append klass full name" << std::endl;
+            return -1;
+        }
         sb.append_cstr(": ");
         sb.sure_null_terminator_but_not_append();
         std::cerr << sb.as_cstr();

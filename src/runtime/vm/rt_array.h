@@ -4,17 +4,20 @@
 #include "metadata/rt_metadata.h"
 #include "interp/interp_defs.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 class Array
 {
   public:
     // Array creation methods
-    static RtResult<RtArray*> new_empty_szarray_by_ele_klass(metadata::RtClass* ele_class);
-    static RtResult<RtArray*> new_szarray_from_array_klass(metadata::RtClass* klass, int32_t length);
-    static RtResult<RtArray*> new_szarray_from_ele_klass(metadata::RtClass* ele_class, int32_t length);
-    static RtResult<RtArray*> new_mdarray_from_array_klass(metadata::RtClass* arr_klass, const int32_t* lengths, const int32_t* lower_bounds);
-    static RtResult<RtArray*> new_mdarray_from_ele_klass(metadata::RtClass* ele_klass, int32_t rank, const int32_t* lengths, const int32_t* lower_bounds);
+    static size_t get_array_allocation_size(const metadata::RtClass* klass, int32_t length);
+    static RtResult<RtArray*> new_empty_szarray_by_ele_klass(const metadata::RtClass* ele_class);
+    static RtResult<RtArray*> new_szarray_from_array_klass(const metadata::RtClass* klass, int32_t length);
+    static RtResult<RtArray*> new_szarray_from_ele_klass(const metadata::RtClass* ele_class, int32_t length);
+    static RtResult<RtArray*> new_mdarray_from_array_klass(const metadata::RtClass* arr_klass, const int32_t* lengths, const int32_t* lower_bounds);
+    static RtResult<RtArray*> new_mdarray_from_ele_klass(const metadata::RtClass* ele_klass, int32_t rank, const int32_t* lengths, const int32_t* lower_bounds);
 
     // Array information methods
     static int32_t get_array_length(const RtArray* array)
@@ -25,8 +28,8 @@ class Array
 
     static size_t get_array_byte_length(const RtArray* array);
     static size_t get_array_element_size(const RtArray* array);
-    static size_t get_array_element_size_by_klass(metadata::RtClass* array_klass);
-    static metadata::RtClass* get_array_element_class(const RtArray* array)
+    static size_t get_array_element_size_by_klass(const metadata::RtClass* array_klass);
+    static const metadata::RtClass* get_array_element_class(const RtArray* array)
     {
         assert(array);
         return array->klass->element_class;
@@ -59,7 +62,7 @@ class Array
     {
         assert(array);
         assert(get_array_element_size(array) == sizeof(T));
-        return reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(const_cast<uint64_t*>(&array->first_data)) + index * sizeof(T));
+        return reinterpret_cast<T*>(&array->first_data) + static_cast<size_t>(index);
     }
     static void* get_array_element_address_as_ptr_void(RtArray* array, int32_t index);
     static void* get_array_element_address_with_size_as_ptr_void(RtArray* array, int32_t index, size_t ele_size);
@@ -69,7 +72,7 @@ class Array
     {
         assert(array);
         assert(get_array_element_size(array) == sizeof(T));
-        const T* data_ptr = reinterpret_cast<const T*>(&array->first_data) + index;
+        const T* data_ptr = reinterpret_cast<const T*>(&array->first_data) + static_cast<size_t>(index);
         return *data_ptr;
     }
 
@@ -78,7 +81,7 @@ class Array
     {
         assert(array);
         assert(get_array_element_size(array) == sizeof(T));
-        T* data_ptr = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(&array->first_data) + index * sizeof(T));
+        T* data_ptr = reinterpret_cast<T*>(&array->first_data) + static_cast<size_t>(index);
         *data_ptr = value;
     }
 
@@ -93,25 +96,26 @@ class Array
 
     // Method invoker implementations
     static RtResultVoid szarray_new_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret);
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept;
     static RtResultVoid szarray_get_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret);
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept;
     static RtResultVoid szarray_set_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret);
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept;
     static RtResultVoid szarray_address_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                                const interp::RtStackObject* params, interp::RtStackObject* ret);
+                                                const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept;
     static RtResultVoid newmdarray_lengths_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                                   const interp::RtStackObject* params, interp::RtStackObject* ret);
+                                                   const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept;
     static RtResultVoid newmdarray_lengths_lower_bounds_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                                                const interp::RtStackObject* params, interp::RtStackObject* ret);
+                                                                const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept;
     static RtResultVoid mdarray_get_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret);
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept;
     static RtResultVoid mdarray_set_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret);
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept;
     static RtResultVoid mdarray_address_invoker(metadata::RtManagedMethodPointer method_pointer, const metadata::RtMethodInfo* method,
-                                                const interp::RtStackObject* params, interp::RtStackObject* ret);
+                                                const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept;
 
     // Array cloning
-    static RtResult<RtArray*> clone(RtArray* old_arr);
+    static RtResult<RtArray*> clone(RtArray* old_arr) noexcept;
 };
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

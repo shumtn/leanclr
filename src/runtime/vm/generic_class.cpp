@@ -4,12 +4,15 @@
 #include "generic_class.h"
 #include "class.h"
 #include "generic_method.h"
+#include "method.h"
 #include "metadata/generic_metadata.h"
 #include "metadata/metadata_cache.h"
 #include "metadata/module_def.h"
 #include "alloc/metadata_allocation.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 using namespace leanclr::metadata;
 using namespace leanclr::core;
@@ -23,7 +26,7 @@ static RtResult<RtClass*> get_class_from_not_pooled_generic_class(const RtGeneri
     RtModuleDef* module = RtModuleDef::get_module_by_id(module_id);
     if (!module)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtClass*, result, GenericClass::get_class(genericClass->base_type_def_gid, genericClass->class_inst));
     RET_OK(result);
@@ -34,7 +37,7 @@ static RtResult<RtClass*> get_class_from_pooled_generic_class(const RtGenericCla
 {
     if (genericClass->cache_klass)
     {
-        RET_OK(genericClass->cache_klass);
+        RET_OK(const_cast<RtClass*>(genericClass->cache_klass));
     }
 
     RtClass* new_class = MetadataAllocation::malloc_any_zeroed<RtClass>();
@@ -44,6 +47,7 @@ static RtResult<RtClass*> get_class_from_pooled_generic_class(const RtGenericCla
     uint32_t base_type_def_gid = genericClass->base_type_def_gid;
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtClass*, base_generic_class, Class::get_class_by_type_def_gid(base_type_def_gid));
+    const_cast<RtGenericClass*>(genericClass)->cache_base_klass = base_generic_class;
     RtModuleDef* ass = base_generic_class->image;
 
     RtClass* parent_class = nullptr;
@@ -147,12 +151,12 @@ RtResultVoid GenericClass::setup_interfaces(RtClass* klass)
     if (base_generic_class->interfaces)
     {
         size_t interface_count = base_generic_class->interface_count;
-        RtClass** interfaces = pool.calloc_any<RtClass*>(interface_count);
+        const RtClass** interfaces = pool.calloc_any<const RtClass*>(interface_count);
 
         RtGenericContext generic_context{generic_class->class_inst, nullptr};
         for (size_t i = 0; i < interface_count; ++i)
         {
-            RtClass* base_interface = base_generic_class->interfaces[i];
+            const RtClass* base_interface = base_generic_class->interfaces[i];
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtTypeSig*, interface_type_sig,
                                                     GenericMetadata::inflate_typesig(base_interface->by_val, &generic_context));
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtClass*, inflated_interface, Class::get_class_from_typesig(interface_type_sig));
@@ -353,14 +357,13 @@ RtResultVoid GenericClass::setup_vtables(RtClass* klass)
         for (size_t i = 0; i < vtable_count; ++i)
         {
             const RtVirtualInvokeData* base_invoke_data = base_generic_class->vtable + i;
-            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtMethodInfo*, inflated_method,
-                                                    GenericMethod::get_method(base_invoke_data->method, generic_class->class_inst, nullptr));
+            RtGenericContext gc = {generic_class->class_inst, nullptr};
+            DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtMethodInfo*, inflated_method, Method::inflate(base_invoke_data->method, &gc));
 
             const RtMethodInfo* inflated_method_impl = nullptr;
             if (base_invoke_data->method_impl)
             {
-                DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtMethodInfo*, impl,
-                                                        GenericMethod::get_method(base_invoke_data->method_impl, generic_class->class_inst, nullptr));
+                DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtMethodInfo*, impl, Method::inflate(base_invoke_data->method_impl, &gc));
                 inflated_method_impl = impl;
             }
 
@@ -395,4 +398,5 @@ RtResultVoid GenericClass::setup_vtables(RtClass* klass)
     RET_VOID_OK();
 }
 
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

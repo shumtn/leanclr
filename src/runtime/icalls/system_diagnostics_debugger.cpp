@@ -4,38 +4,40 @@
 #include "vm/debugger.h"
 #include "vm/rt_string.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResult<bool> SystemDiagnosticsDebugger::is_attached_internal()
+RtResult<bool> SystemDiagnosticsDebugger::is_attached_internal() noexcept
 {
     RET_OK(false);
 }
 
 /// @icall: System.Diagnostics.Debugger::IsAttached_internal()
 static RtResultVoid is_attached_internal_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                 const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                 const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, result, SystemDiagnosticsDebugger::is_attached_internal());
     EvalStackOp::set_return(ret, static_cast<int32_t>(result));
     RET_VOID_OK();
 }
 
-RtResult<bool> SystemDiagnosticsDebugger::is_logging()
+RtResult<bool> SystemDiagnosticsDebugger::is_logging() noexcept
 {
     RET_OK(false);
 }
 
 /// @icall: System.Diagnostics.Debugger::IsLogging()
 static RtResultVoid is_logging_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
-                                       interp::RtStackObject* ret)
+                                       interp::RtStackObject* ret) noexcept
 {
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(bool, result, SystemDiagnosticsDebugger::is_logging());
     EvalStackOp::set_return(ret, static_cast<int32_t>(result));
     RET_VOID_OK();
 }
 
-RtResultVoid SystemDiagnosticsDebugger::log_icall(int32_t level, vm::RtString** category, vm::RtString** message)
+RtResultVoid SystemDiagnosticsDebugger::log_icall(int32_t level, vm::RtString** category, vm::RtString** message) noexcept
 {
     vm::Debugger::log(level, *category, *message);
     RET_VOID_OK();
@@ -43,7 +45,7 @@ RtResultVoid SystemDiagnosticsDebugger::log_icall(int32_t level, vm::RtString** 
 
 /// @icall: System.Diagnostics.Debugger::Log_icall(System.Int32,System.String&,System.String&)
 static RtResultVoid log_icall_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
-                                      interp::RtStackObject* ret)
+                                      interp::RtStackObject* ret) noexcept
 {
     (void)ret;
     auto level = EvalStackOp::get_param<int32_t>(params, 0);
@@ -53,7 +55,7 @@ static RtResultVoid log_icall_invoker(metadata::RtManagedMethodPointer methodPtr
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemDiagnosticsDebugger::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemDiagnosticsDebugger::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Diagnostics.Debugger::IsAttached_internal()", (vm::InternalCallFunction)&SystemDiagnosticsDebugger::is_attached_internal,
@@ -65,4 +67,5 @@ utils::Span<vm::InternalCallEntry> SystemDiagnosticsDebugger::get_internal_call_
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

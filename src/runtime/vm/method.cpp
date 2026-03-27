@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <cstring>
-#include <optional>
+#include "core/stl_compat.h"
 
 #include "method.h"
 
@@ -19,7 +19,9 @@
 #include "metadata/module_def.h"
 #include "interp/interp_defs.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 using namespace leanclr::metadata;
 using namespace leanclr::core;
@@ -48,7 +50,7 @@ RtResult<const RtMethodInfo*> Method::get_method_by_method_def_gid(uint32_t meth
     RtModuleDef* module = RtModuleDef::get_module_by_id(module_id);
     if (!module)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtMethodInfo*, method, module->get_method_by_rid(method_rid));
@@ -60,31 +62,61 @@ uint32_t Method::get_method_def_gid(const metadata::RtMethodInfo* method)
     return RtMetadata::encode_gid_by_rid(*method->parent->image, RtToken::decode_rid(method->token));
 }
 
-const RtVirtualInvokeData* Method::get_vtable_method_invoke_data(RtClass* klass, size_t method_index)
+const RtVirtualInvokeData* Method::get_vtable_method_invoke_data(const RtClass* klass, size_t method_index)
 {
     return klass->vtable + method_index;
 }
 
-RtManagedMethodPointer Method::get_vtable_method_ptr(RtClass* klass, size_t method_index)
+RtManagedMethodPointer Method::get_vtable_method_ptr(const RtClass* klass, size_t method_index)
 {
     const RtVirtualInvokeData* data = get_vtable_method_invoke_data(klass, method_index);
     return data->method_impl->method_ptr;
 }
 
-const RtMethodInfo* Method::get_vtable_method(RtClass* klass, size_t method_index)
+const RtMethodInfo* Method::get_vtable_method(const RtClass* klass, size_t method_index)
 {
     const RtVirtualInvokeData* data = get_vtable_method_invoke_data(klass, method_index);
     return data->method;
 }
 
-RtResult<const RtVirtualInvokeData*> Method::get_interface_method_invoke_data(RtClass* klass, RtClass* interface_klass, size_t slot)
+RtResult<const RtVirtualInvokeData*> Method::get_interface_method_invoke_data(const RtClass* klass, const RtClass* interface_klass, size_t slot)
 {
     const RtInterfaceOffset* offsets = klass->interface_vtable_offsets;
-    for (size_t i = 0; i < klass->interface_vtable_offset_count; ++i)
+    if (!Class::is_generic_inst(interface_klass))
     {
-        const RtInterfaceOffset& off = offsets[i];
-        if (off.interface == interface_klass)
+        for (size_t i = 0; i < klass->interface_vtable_offset_count; ++i)
         {
+            const RtInterfaceOffset& off = offsets[i];
+            if (off.interface == interface_klass)
+            {
+                size_t vtable_index = static_cast<size_t>(off.offset) + slot;
+                RET_OK(klass->vtable + vtable_index);
+            }
+        }
+    }
+    else
+    {
+        // FIXME: same to il2cpp, but it seems that il2cpp doesn't consider the case where the same generic interface is implemented multiple times with
+        // different generic arguments, which is legal in C#. We may need to add more checks here to find the correct interface vtable offset.
+        for (int32_t i = klass->interface_vtable_offset_count; i > 0; --i)
+        {
+            const RtInterfaceOffset& off = offsets[i - 1];
+            const RtClass* implemented_interface = off.interface;
+            if (implemented_interface != interface_klass)
+            {
+                if (!Class::is_generic_inst(implemented_interface))
+                {
+                    continue;
+                }
+                if (implemented_interface->by_val->data.generic_class->base_type_def_gid != interface_klass->by_val->data.generic_class->base_type_def_gid)
+                {
+                    continue;
+                }
+                if (!Class::is_assignable_from_generic_parameter_convariant(implemented_interface, interface_klass, klass))
+                {
+                    continue;
+                }
+            }
             size_t vtable_index = static_cast<size_t>(off.offset) + slot;
             RET_OK(klass->vtable + vtable_index);
         }
@@ -94,13 +126,13 @@ RtResult<const RtVirtualInvokeData*> Method::get_interface_method_invoke_data(Rt
 
 RtResult<const RtMethodInfo*> Method::get_virtual_method_impl(RtObject* obj, const RtMethodInfo* virtual_method)
 {
-    RtClass* klass = obj->klass;
+    const RtClass* klass = obj->klass;
     return get_virtual_method_impl_on_klass(klass, virtual_method);
 }
 
-RtResult<const RtMethodInfo*> Method::get_virtual_method_impl_on_klass(RtClass* klass, const RtMethodInfo* virtual_method)
+RtResult<const RtMethodInfo*> Method::get_virtual_method_impl_on_klass(const RtClass* klass, const RtMethodInfo* virtual_method)
 {
-    RtClass* declaring_klass = virtual_method->parent;
+    const RtClass* declaring_klass = virtual_method->parent;
     if (declaring_klass == klass || !is_virtual(virtual_method))
     {
         RET_OK(virtual_method);
@@ -137,7 +169,7 @@ RtResult<const RtMethodInfo*> Method::get_virtual_method_impl_on_klass(RtClass* 
     RET_OK(actual_method);
 }
 
-const RtMethodInfo* Method::find_matched_method_in_class(RtClass* klass, const RtMethodInfo* to_match_method)
+const RtMethodInfo* Method::find_matched_method_in_class(const RtClass* klass, const RtMethodInfo* to_match_method)
 {
     const RtMethodInfo** methods = klass->methods;
     for (size_t i = 0; i < klass->method_count; ++i)
@@ -151,7 +183,7 @@ const RtMethodInfo* Method::find_matched_method_in_class(RtClass* klass, const R
     return nullptr;
 }
 
-const RtMethodInfo* Method::find_matched_method_in_class_by_name_and_signature(RtClass* klass, const char* name, const RtTypeSig* const* param_type_sigs,
+const RtMethodInfo* Method::find_matched_method_in_class_by_name_and_signature(const RtClass* klass, const char* name, const RtTypeSig* const* param_type_sigs,
                                                                                size_t param_count)
 {
     const RtMethodInfo** methods = klass->methods;
@@ -167,7 +199,7 @@ const RtMethodInfo* Method::find_matched_method_in_class_by_name_and_signature(R
     return nullptr;
 }
 
-const RtMethodInfo* Method::find_matched_method_in_class_by_name(RtClass* klass, const char* name)
+const RtMethodInfo* Method::find_matched_method_in_class_by_name(const RtClass* klass, const char* name)
 {
     const RtMethodInfo** methods = klass->methods;
     for (size_t i = 0; i < klass->method_count; ++i)
@@ -181,7 +213,7 @@ const RtMethodInfo* Method::find_matched_method_in_class_by_name(RtClass* klass,
     return nullptr;
 }
 
-const RtMethodInfo* Method::find_matched_method_in_class_by_name_and_param_count(RtClass* klass, const char* name, size_t parameter_count)
+const RtMethodInfo* Method::find_matched_method_in_class_by_name_and_param_count(const RtClass* klass, const char* name, size_t parameter_count)
 {
     const RtMethodInfo** methods = klass->methods;
     for (size_t i = 0; i < klass->method_count; ++i)
@@ -290,6 +322,11 @@ bool Method::has_method_body(const RtMethodInfo* method)
     return optMethod.has_value() && optMethod->rva != 0;
 }
 
+bool Method::has_this(const metadata::RtMethodSig* method_sig)
+{
+    return method_sig->flags & static_cast<uint16_t>(metadata::RtSigType::HasThis);
+}
+
 size_t Method::get_param_count_include_this(const RtMethodInfo* method)
 {
     return static_cast<size_t>(method->parameter_count) + (is_instance(method) ? 1 : 0);
@@ -319,7 +356,7 @@ bool Method::contains_not_instantiated_generic_param(const RtMethodInfo* method)
     {
         return true;
     }
-    RtClass* klass = method->parent;
+    const RtClass* klass = method->parent;
     if (klass->generic_container || Type::contains_generic_param(method->return_type))
     {
         return true;
@@ -357,12 +394,12 @@ RtResultVoid Method::build_method_arg_descs(RtMethodInfo* method)
         RET_VOID_OK();
     }
     RtModuleDef* mod = method->parent->image;
-    uint32_t totalParamCountExcludeThis = get_param_count_exclude_this(method);
+    size_t totalParamCountExcludeThis = get_param_count_exclude_this(method);
     size_t totalStackObjectSize = is_instance(method);
     if (totalParamCountExcludeThis > 0)
     {
         metadata::RtMethodArgDesc* descs = mod->get_mem_pool().calloc_any<metadata::RtMethodArgDesc>(totalParamCountExcludeThis);
-        for (uint32_t i = 0; i < totalParamCountExcludeThis; ++i)
+        for (size_t i = 0; i < totalParamCountExcludeThis; ++i)
         {
             const metadata::RtTypeSig* paramTypeSig = method->parameters[i];
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(interp::ReduceTypeAndSize, reduceTypeAndSize,
@@ -392,7 +429,7 @@ RtResultVoid Method::build_method_arg_descs(RtMethodInfo* method)
 
 size_t Method::get_method_index_in_class(const RtMethodInfo* method)
 {
-    RtClass* parent = method->parent;
+    const RtClass* parent = method->parent;
     const RtMethodInfo** methods = parent->methods;
     if (method->token != 0)
     {
@@ -414,7 +451,7 @@ RtResult<const RtMethodInfo*> Method::inflate_method(const RtMethodInfo* method,
     {
         RET_OK(method);
     }
-    metadata::RtClass* klass = method->parent;
+    const metadata::RtClass* klass = method->parent;
     if (!vm::Class::is_generic(klass) && !vm::Class::is_generic_inst(klass) && !method->generic_container)
     {
         assert(!klass->generic_container);
@@ -474,7 +511,7 @@ RtResult<const RtMethodInfo*> Method::inflate_method(const RtMethodInfo* method,
         }
         else
         {
-            assert(gc->method_inst && "Method generic instance must be provided in generic context");
+            // assert(gc->method_inst && "Method generic instance must be provided in generic context");
             newMethodInst = gc->method_inst;
         }
     }
@@ -525,6 +562,18 @@ RtResult<RtString*> Method::get_parameter_name_by_token(RtModuleDef* mod, metada
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const char*, name, mod->get_string(opt_param_row->name));
     RtString* managed_name = String::create_string_from_utf8cstr(name);
     RET_OK(managed_name);
+}
+
+RtResult<const char*> Method::get_parameter_c_name_by_token(RtModuleDef* mod, metadata::EncodedTokenId param_token)
+{
+    uint32_t rid = metadata::RtToken::decode_rid(param_token);
+    auto opt_param_row = mod->get_cli_image().read_param(rid);
+    if (!opt_param_row)
+    {
+        RET_OK(nullptr);
+    }
+    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const char*, name, mod->get_string(opt_param_row->name));
+    RET_OK(name);
 }
 
 RtResult<std::optional<RowImplMap>> Method::get_imp_map_info(const RtMethodInfo* method)
@@ -671,4 +720,5 @@ RtResultVoid Method::get_parameter_modifiers(const RtMethodInfo* method, int32_t
     return mod->read_parameter_modifier(reader, index, optional, RtGenericContainerContext{}, nullptr, modifiers);
 }
 
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

@@ -1,4 +1,5 @@
 #include "rt_exception.h"
+#include <cstdlib>
 #include "gc/garbage_collector.h"
 #include "assembly.h"
 #include "class.h"
@@ -9,7 +10,9 @@
 #include "interp/machine_state.h"
 #include "settings.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 static RtException** s_ref_exceptions = nullptr;
@@ -89,8 +92,6 @@ static metadata::RtClass* get_exception_klass_of_runtime_error(RtErr err)
         return types.cls_entry_point_not_found_exception;
     case RtErr::NotSupported:
         return types.cls_not_supported_exception;
-    case RtErr::TypeUnloaded:
-        return types.cls_type_unloaded_exception;
     default:
         assert(false && "Unknown runtime error");
         return types.cls_execution_engine_exception;
@@ -115,7 +116,7 @@ RtException* Exception::raise_error_as_exception(RtErr err, interp::InterpFrame*
         auto ex_ret2 = vm::Object::new_object(Class::get_corlib_types().cls_execution_engine_exception);
         if (ex_ret2.is_ok())
         {
-            return reinterpret_cast<RtException*>(ex_ret2.unwrap());
+            return raise_exception(reinterpret_cast<RtException*>(ex_ret2.unwrap()), frame, ip);
         }
         // Failed to create exception object, return nullptr
         return nullptr;
@@ -132,9 +133,10 @@ RtException* Exception::raise_aot_exception(RtException* ex, const metadata::RtM
     return raise_exception(ex, nullptr, reinterpret_cast<const void*>(static_cast<intptr_t>(ip)));
 }
 
-void Exception::raise_internal_runtime_error_as_exception(RtErr err, const char* message)
+RtErr Exception::raise_internal_runtime_error_as_exception(RtErr err, const char* message)
 {
     raise_error_as_exception(err, nullptr, nullptr);
+    return RtErr::ManagedException;
 }
 
 static void prepare_exception_info(RtException* ex, interp::InterpFrame* frame, const void* ip)
@@ -176,6 +178,18 @@ RtException* Exception::raise_internal_runtime_exception(metadata::RtClass* ex_c
     return nullptr;
 }
 
+void Exception::raise_as_cpp_exception(RtException* ex)
+{
+    RtException* raised = raise_aot_exception(ex, nullptr, -1);
+#if (defined(__cpp_exceptions) && (__cpp_exceptions >= 199711L)) || (defined(_CPPUNWIND) && _CPPUNWIND)
+    throw AotExceptionWrapper{raised};
+#else
+    (void)raised;
+    (void)report_unhandled_exception(ex);
+    std::abort();
+#endif
+}
+
 RtResultVoid Exception::report_unhandled_exception(RtException* exception)
 {
     auto handler = vm::Settings::get_report_unhandled_exception_function();
@@ -186,4 +200,22 @@ RtResultVoid Exception::report_unhandled_exception(RtException* exception)
     RET_VOID_OK();
 }
 
-} // namespace leanclr::vm
+void Exception::format_exception(RtException* ex, utils::StringBuilder& sb)
+{
+    const metadata::RtClass* klass = ex->klass;
+    if (klass->namespaze && klass->namespaze[0] != 0)
+    {
+        sb.append_cstr(klass->namespaze);
+        sb.append_char('.');
+    }
+    sb.append_cstr(klass->name);
+    if (ex->message)
+    {
+        sb.append_cstr(": ");
+        sb.append_utf16_str(vm::String::get_chars_ptr(ex->message), static_cast<size_t>(vm::String::get_length(ex->message)));
+    }
+    sb.sure_null_terminator_but_not_append();
+}
+
+} // namespace vm
+} // namespace leanclr

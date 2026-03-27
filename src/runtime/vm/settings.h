@@ -1,10 +1,12 @@
 #pragma once
 
-#include "rt_base.h"
+#include "core/rt_base.h"
 #include "utils/rt_span.h"
 #include "rt_managed_types.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 struct FileData
@@ -22,6 +24,22 @@ typedef void (*ReportUnhandledExceptionFunc)(RtException* exception);
 class Settings
 {
   public:
+    /// for il2cpp begin
+    static const char* get_domain_name();
+    static void set_domain_name(const char* domain_name);
+
+    static void set_config_dir(const char* config_dir);
+    static const char* get_config_dir();
+    static void set_data_dir(const char* data_dir);
+    static const char* get_data_dir();
+    static void set_temp_dir(const char* temp_dir);
+    static const char* get_temp_dir();
+    static void set_config(const char* executablePath);
+    static const char* get_config();
+
+    static void set_command_line_arguments_utf16(int32_t argc, const Utf16Char** argv);
+    /// for il2cpp end
+
     static FileLoader get_file_loader();
     static void set_file_loader(FileLoader loader);
 
@@ -46,4 +64,5 @@ class Settings
     static const metadata::RtAotModulesData* get_aot_modules_data();
     static void set_aot_modules_data(const metadata::RtAotModulesData* modules_data);
 };
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

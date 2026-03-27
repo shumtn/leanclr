@@ -5,7 +5,9 @@
 #include "vm/object.h"
 #include "vm/reflection.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 // ========== Enum comparison result enum ==========
@@ -38,10 +40,10 @@ static EnumComparisonResult cmp_any(const void* p1, const void* p2)
 
 // ========== Impl functions ==========
 
-RtResult<int32_t> SystemEnum::internal_compare_to(vm::RtObject* obj1, vm::RtObject* obj2)
+RtResult<int32_t> SystemEnum::internal_compare_to(vm::RtObject* obj1, vm::RtObject* obj2) noexcept
 {
-    metadata::RtClass* klass1 = obj1->klass;
-    metadata::RtClass* klass2 = obj2->klass;
+    const metadata::RtClass* klass1 = obj1->klass;
+    const metadata::RtClass* klass2 = obj2->klass;
 
     EnumComparisonResult result;
     if (klass1 != klass2)
@@ -87,14 +89,14 @@ RtResult<int32_t> SystemEnum::internal_compare_to(vm::RtObject* obj1, vm::RtObje
             result = cmp_any<uint64_t>(data1, data2);
             break;
         default:
-            RET_ERR(RtErr::ExecutionEngine);
+            RET_ASSERT_ERR(RtErr::ExecutionEngine);
         }
     }
 
     RET_OK(static_cast<int32_t>(result));
 }
 
-RtResult<vm::RtReflectionRuntimeType*> SystemEnum::internal_get_underlying_type(vm::RtReflectionRuntimeType* enum_klass)
+RtResult<vm::RtReflectionRuntimeType*> SystemEnum::internal_get_underlying_type(vm::RtReflectionRuntimeType* enum_klass) noexcept
 {
     const metadata::RtTypeSig* type_sig = enum_klass->reflection_type.type_handle;
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, klass, vm::Class::get_class_from_typesig(type_sig));
@@ -102,7 +104,7 @@ RtResult<vm::RtReflectionRuntimeType*> SystemEnum::internal_get_underlying_type(
     RET_OK(reinterpret_cast<vm::RtReflectionRuntimeType*>(reflection_type));
 }
 
-RtResult<bool> SystemEnum::get_enum_values_and_names(vm::RtReflectionRuntimeType* enum_klass, vm::RtArray** values, vm::RtArray** names)
+RtResult<bool> SystemEnum::get_enum_values_and_names(vm::RtReflectionRuntimeType* enum_klass, vm::RtArray** values, vm::RtArray** names) noexcept
 {
     const metadata::RtTypeSig* type_sig = enum_klass->reflection_type.type_handle;
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, klass, vm::Class::get_class_from_typesig(type_sig));
@@ -116,7 +118,7 @@ RtResult<bool> SystemEnum::get_enum_values_and_names(vm::RtReflectionRuntimeType
     RET_OK(sorted);
 }
 
-RtResult<vm::RtObject*> SystemEnum::internal_box_enum(vm::RtReflectionRuntimeType* runtime_type, uint64_t value)
+RtResult<vm::RtObject*> SystemEnum::internal_box_enum(vm::RtReflectionRuntimeType* runtime_type, uint64_t value) noexcept
 {
     const metadata::RtTypeSig* type_sig = runtime_type->reflection_type.type_handle;
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, klass, vm::Class::get_class_from_typesig(type_sig));
@@ -124,7 +126,7 @@ RtResult<vm::RtObject*> SystemEnum::internal_box_enum(vm::RtReflectionRuntimeTyp
     return vm::Object::box_object(klass, &value);
 }
 
-RtResult<vm::RtObject*> SystemEnum::get_value(vm::RtObject* obj)
+RtResult<vm::RtObject*> SystemEnum::get_value(vm::RtObject* obj) noexcept
 {
     if (obj == nullptr)
     {
@@ -132,11 +134,11 @@ RtResult<vm::RtObject*> SystemEnum::get_value(vm::RtObject* obj)
     }
 
     const void* data_ptr = vm::Object::get_boxed_enum_data_ptr(obj);
-    metadata::RtClass* element_class = obj->klass->element_class;
+    const metadata::RtClass* element_class = obj->klass->element_class;
     return vm::Object::box_object(element_class, data_ptr);
 }
 
-RtResult<bool> SystemEnum::internal_has_flag(vm::RtObject* obj, vm::RtObject* flag)
+RtResult<bool> SystemEnum::internal_has_flag(vm::RtObject* obj, vm::RtObject* flag) noexcept
 {
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(uint64_t, value1, vm::Enum::get_boxed_enum_data_as_unsigned_and_extended_to_u64(obj));
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(uint64_t, value2, vm::Enum::get_boxed_enum_data_as_unsigned_and_extended_to_u64(flag));
@@ -144,7 +146,7 @@ RtResult<bool> SystemEnum::internal_has_flag(vm::RtObject* obj, vm::RtObject* fl
     RET_OK(result);
 }
 
-RtResult<int32_t> SystemEnum::get_hash_code(vm::RtObject* obj)
+RtResult<int32_t> SystemEnum::get_hash_code(vm::RtObject* obj) noexcept
 {
     return vm::Enum::get_hash_code(obj);
 }
@@ -153,7 +155,7 @@ RtResult<int32_t> SystemEnum::get_hash_code(vm::RtObject* obj)
 
 /// @icall: System.Enum::InternalCompareTo
 static RtResultVoid internal_compare_to_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                                interp::RtStackObject* ret)
+                                                interp::RtStackObject* ret) noexcept
 {
     vm::RtObject* enum_obj = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     vm::RtObject* other = EvalStackOp::get_param<vm::RtObject*>(params, 1);
@@ -164,7 +166,7 @@ static RtResultVoid internal_compare_to_invoker(metadata::RtManagedMethodPointer
 
 /// @icall: System.Enum::InternalGetUnderlyingType
 static RtResultVoid internal_get_underlying_type_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                                         interp::RtStackObject* ret)
+                                                         interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionRuntimeType* enum_klass = EvalStackOp::get_param<vm::RtReflectionRuntimeType*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtReflectionRuntimeType*, underlying_type, SystemEnum::internal_get_underlying_type(enum_klass));
@@ -174,7 +176,7 @@ static RtResultVoid internal_get_underlying_type_invoker(metadata::RtManagedMeth
 
 /// @icall: System.Enum::GetEnumValuesAndNames
 static RtResultVoid get_enum_values_and_names_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                                      interp::RtStackObject* ret)
+                                                      interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionRuntimeType* enum_klass = EvalStackOp::get_param<vm::RtReflectionRuntimeType*>(params, 0);
     vm::RtArray* values = nullptr;
@@ -191,7 +193,7 @@ static RtResultVoid get_enum_values_and_names_invoker(metadata::RtManagedMethodP
 
 /// @icall: System.Enum::InternalBoxEnum
 static RtResultVoid internal_box_enum_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                              interp::RtStackObject* ret)
+                                              interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionRuntimeType* runtime_type = EvalStackOp::get_param<vm::RtReflectionRuntimeType*>(params, 0);
     uint64_t value = EvalStackOp::get_param<uint64_t>(params, 1);
@@ -201,8 +203,8 @@ static RtResultVoid internal_box_enum_invoker(metadata::RtManagedMethodPointer, 
 }
 
 /// @icall: System.Enum::get_value
-static RtResultVoid get_value_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                      interp::RtStackObject* ret)
+static RtResultVoid enum_get_value_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
+                                           interp::RtStackObject* ret) noexcept
 {
     vm::RtObject* obj = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtObject*, value, SystemEnum::get_value(obj));
@@ -212,7 +214,7 @@ static RtResultVoid get_value_invoker(metadata::RtManagedMethodPointer, const me
 
 /// @icall: System.Enum::InternalHasFlag
 static RtResultVoid internal_has_flag_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                              interp::RtStackObject* ret)
+                                              interp::RtStackObject* ret) noexcept
 {
     vm::RtObject* obj = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     vm::RtObject* flag = EvalStackOp::get_param<vm::RtObject*>(params, 1);
@@ -222,8 +224,8 @@ static RtResultVoid internal_has_flag_invoker(metadata::RtManagedMethodPointer, 
 }
 
 /// @icall: System.Enum::get_hashcode
-static RtResultVoid get_hash_code_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                          interp::RtStackObject* ret)
+static RtResultVoid enum_get_hash_code_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
+                                               interp::RtStackObject* ret) noexcept
 {
     vm::RtObject* obj = EvalStackOp::get_param<vm::RtObject*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(int32_t, hash_code, SystemEnum::get_hash_code(obj));
@@ -233,19 +235,21 @@ static RtResultVoid get_hash_code_invoker(metadata::RtManagedMethodPointer, cons
 
 // ========== Registration ==========
 
-static vm::InternalCallEntry s_internal_call_entries[] = {
+static vm::InternalCallEntry s_internal_call_entries_system_enum[] = {
     {"System.Enum::InternalCompareTo", (vm::InternalCallFunction)&SystemEnum::internal_compare_to, internal_compare_to_invoker},
     {"System.Enum::InternalGetUnderlyingType", (vm::InternalCallFunction)&SystemEnum::internal_get_underlying_type, internal_get_underlying_type_invoker},
     {"System.Enum::GetEnumValuesAndNames", (vm::InternalCallFunction)&SystemEnum::get_enum_values_and_names, get_enum_values_and_names_invoker},
     {"System.Enum::InternalBoxEnum", (vm::InternalCallFunction)&SystemEnum::internal_box_enum, internal_box_enum_invoker},
-    {"System.Enum::get_value", (vm::InternalCallFunction)&SystemEnum::get_value, get_value_invoker},
+    {"System.Enum::get_value", (vm::InternalCallFunction)&SystemEnum::get_value, enum_get_value_invoker},
     {"System.Enum::InternalHasFlag", (vm::InternalCallFunction)&SystemEnum::internal_has_flag, internal_has_flag_invoker},
-    {"System.Enum::get_hashcode", (vm::InternalCallFunction)&SystemEnum::get_hash_code, get_hash_code_invoker},
+    {"System.Enum::get_hashcode", (vm::InternalCallFunction)&SystemEnum::get_hash_code, enum_get_hash_code_invoker},
 };
 
-utils::Span<vm::InternalCallEntry> SystemEnum::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemEnum::get_internal_call_entries() noexcept
 {
-    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries, std::size(s_internal_call_entries));
+    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries_system_enum,
+                                              sizeof(s_internal_call_entries_system_enum) / sizeof(s_internal_call_entries_system_enum[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

@@ -3,16 +3,19 @@
 #include "cli_metadata.h"
 #include "utils/rt_vector.h"
 
-namespace leanclr::interp
+namespace leanclr
+{
+namespace interp
 {
 union RtStackObject;
 struct RtInterpMethodInfo;
-} // namespace leanclr::interp
+} // namespace interp
+} // namespace leanclr
 
-namespace leanclr::metadata
+namespace leanclr
 {
-
-typedef void (*RtFnPtr)();
+namespace metadata
+{
 
 // Element type enumeration
 enum class RtElementType : uint8_t
@@ -77,6 +80,7 @@ struct RtClass;
 struct RtMethodInfo;
 struct RtPropertyInfo;
 struct RtEventInfo;
+struct RtMethodSig;
 
 // Type signature variant data union
 union RtTypeSigVariantData
@@ -87,6 +91,7 @@ union RtTypeSigVariantData
     const RtArrayType* array_type;       // Array -> RtArrayType*
     const RtGenericClass* generic_class; // GenericInst -> RtGenericClass*
     const RtGenericParam* generic_param; // GenericParam -> RtGenericParam*
+    const RtMethodSig* method_sig;       // MethodSpec -> RtMethodSig*
 };
 
 static_assert(sizeof(RtTypeSigVariantData) == sizeof(void*), "RtTypeSigVariantData size must be pointer size");
@@ -402,6 +407,18 @@ struct RtArrayType
 
 struct RtGenericContainer;
 
+enum class RtGenericParamAttribute : uint16_t
+{
+    None = 0x0,
+    VarianceMask = 0x3,
+    Covariant = 0x1,
+    Contravariant = 0x2,
+    SpecialConstraintMask = 0x1C,
+    ReferenceTypeConstraint = 0x4,
+    NotNullableValueTypeConstraint = 0x8,
+    DefaultConstructorConstraint = 0x10,
+};
+
 // Generic parameter structure
 struct RtGenericParam
 {
@@ -488,18 +505,20 @@ struct RtMethodArgDesc
     uint16_t stack_object_size;
 };
 
-// Managed method pointer type
-typedef void (*RtManagedMethodPointer)();
+// Managed method pointer type (noexcept not on alias - MSVC C2279; all invokers implement noexcept)
+using RtManagedMethodPointer = void (*)();
+using RtInvokeMethodPointer = RtResultVoid (*)(RtManagedMethodPointer, const RtMethodInfo*, const interp::RtStackObject*, interp::RtStackObject*);
+using RtNativeMethodPointer = void (*)();
 
-typedef RtResultVoid (*RtInvokeMethodPointer)(RtManagedMethodPointer method_ptr, const RtMethodInfo* method, const interp::RtStackObject* args,
-                                              interp::RtStackObject* ret);
-typedef void (*RtCInvokeMethodPointer)(RtManagedMethodPointer method_ptr, const RtMethodInfo* method, const interp::RtStackObject* args,
-                                       interp::RtStackObject* ret, RtErr* out_err);
+#define CAST_AS_NOEXCEP_MANAGED_METHOD_POINTER(p) ((void (*)() noexcept)(p))
+#define CAST_AS_NOEXCEP_INVOKE_METHOD_POINTER(p)                                                                         \
+    ((::leanclr::RtResultVoid (*)(::leanclr::metadata::RtManagedMethodPointer, const ::leanclr::metadata::RtMethodInfo*, \
+                                  const ::leanclr::interp::RtStackObject*, ::leanclr::interp::RtStackObject*) noexcept)(p))
 
 // Interface offset structure
 struct RtInterfaceOffset
 {
-    RtClass* interface;
+    const RtClass* interface;
     uint16_t offset;
 };
 
@@ -513,7 +532,7 @@ struct RtVirtualInvokeData
 // Method definition or reference
 struct RtMethodDefOrRef
 {
-    RtClass* parent;
+    const RtClass* parent;
     const RtMethodInfo* method;
 };
 
@@ -536,7 +555,7 @@ enum class RtInvokerType : uint8_t
 // Method information structure
 struct RtMethodInfo
 {
-    RtClass* parent;
+    const RtClass* parent;
     const char* name;
     const RtGenericContainer* generic_container;
     const RtGenericMethod* generic_method;
@@ -560,7 +579,7 @@ struct RtMethodInfo
 // Property information structure
 struct RtPropertyInfo
 {
-    RtClass* parent;
+    const RtClass* parent;
     const char* name;
     RtPropertySig property_sig;
     uint16_t flags;
@@ -572,7 +591,7 @@ struct RtPropertyInfo
 // Event information structure
 struct RtEventInfo
 {
-    RtClass* parent;
+    const RtClass* parent;
     const char* name;
     const RtTypeSig* type_sig;
     uint16_t flags;
@@ -589,8 +608,8 @@ struct RtGenericClass
     const RtGenericInst* class_inst;
     RtTypeSig by_val_type_sig;
     RtTypeSig by_ref_type_sig;
-    RtClass* cache_base_klass;
-    RtClass* cache_klass;
+    const RtClass* cache_base_klass;
+    const RtClass* cache_klass;
 };
 
 struct RtAssemblyName
@@ -652,17 +671,17 @@ class RtModuleDef;
 struct RtClass
 {
     RtModuleDef* image;
-    RtClass* parent;
+    const RtClass* parent;
     const char* namespaze;
     const char* name;
     const RtTypeSig* by_val;
     const RtTypeSig* by_ref;
-    RtClass* element_class;
-    RtClass* cast_class;
-    RtClass** super_types;
-    RtClass** interfaces;
-    RtClass* declaring_class; // TODO, may be we can optimize out it
-    RtClass** nested_classes; // TODO, may be we can optimize out it
+    const RtClass* element_class;
+    const RtClass* cast_class;
+    const RtClass** super_types;
+    const RtClass** interfaces;
+    const RtClass* declaring_class; // TODO, may be we can optimize out it
+    const RtClass** nested_classes; // TODO, may be we can optimize out it
     const RtGenericContainer* generic_container;
     const RtFieldInfo* fields;
     const RtMethodInfo** methods;
@@ -671,6 +690,7 @@ struct RtClass
     const RtVirtualInvokeData* vtable;
     const RtInterfaceOffset* interface_vtable_offsets;
     uint8_t* static_fields_data;
+    void* unity_user_data;
     EncodedTokenId token;
     uint32_t instance_size_without_header;
     uint32_t static_size;
@@ -699,6 +719,28 @@ struct RtCustomAttributeRawData
 {
     const RtMethodInfo* ctor;
     uint32_t dataBlobIndex;
+};
+
+enum class RtMarshalNativeType
+{
+    Boolean = 0x2,
+    I1 = 0x3,
+    U1 = 0x4,
+    I2 = 0x5,
+    U2 = 0x6,
+    I4 = 0x7,
+    U4 = 0x8,
+    I8 = 0x9,
+    U8 = 0xA,
+    R4 = 0xB,
+    R8 = 0xC,
+    LPSTR = 0x14,
+    LPWSTR = 0x15,
+    Int = 0X1f,
+    Uint = 0X20,
+    Func = 0x26,
+    Array = 0x2a,
+    Max = 0x50, // NOT DEFINED IN ecma-335, the implementation of coreclr is 0x50
 };
 
 class RtModuleDef;
@@ -820,13 +862,17 @@ class RtEncodedRuntimeHandle
     {
     }
 
+    explicit RtEncodedRuntimeHandle(const void* v) : value((size_t)v)
+    {
+    }
+
     RtEncodedRuntimeHandle() : value(0)
     {
     }
 
     const void* get_handle_without_type() const
     {
-        return (void*)(value & ~0x3);
+        return (void*)(value & ~static_cast<size_t>(3));
     }
 
     size_t get_encoded_value() const
@@ -849,7 +895,7 @@ class RtEncodedRuntimeHandle
     static RtRuntimeHandle decode(size_t encodedValue)
     {
         RtRuntimeHandleType type = static_cast<RtRuntimeHandleType>(encodedValue & 0x3);
-        void* value = (void*)(encodedValue & ~0x3);
+        void* value = (void*)(encodedValue & ~static_cast<size_t>(3));
         return RtRuntimeHandle{type, value};
     }
 };
@@ -880,6 +926,7 @@ struct RtAotModuleData
 {
     const char* module_name;
     RtAotModuleInitializer initializer;
+    RtAotModuleInitializer deferred_initializer;
     const RtAotMethodDefData* method_def_entries;
     uint32_t method_def_entry_count;
 };
@@ -889,6 +936,8 @@ struct RtAotModulesData
     const RtAotModuleData** modules;
     uint32_t module_count;
 };
+
+typedef void (*ClassWalkCallback)(RtClass* klass, void* userData);
 
 class RtMetadata
 {
@@ -1283,6 +1332,13 @@ class RtMetadata
         return (rid << 2) | tag;
     }
 
+    static uint32_t encode_has_field_marshal_coded_index(TableType table_type, uint32_t rid)
+    {
+        assert(table_type == TableType::Field || table_type == TableType::Param);
+        uint32_t tag = (table_type == TableType::Field) ? 0u : 1u;
+        return (rid << 1) | tag;
+    }
+
     static RtToken decode_implementation_coded_index(uint32_t index)
     {
         uint32_t tag = index & 0x3u;
@@ -1315,4 +1371,5 @@ class RtMetadata
     }
 };
 
-} // namespace leanclr::metadata
+} // namespace metadata
+} // namespace leanclr

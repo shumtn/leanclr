@@ -12,7 +12,9 @@
 #include "vm/class.h"
 #include "vm/method.h"
 
-namespace leanclr::metadata
+namespace leanclr
+{
+namespace metadata
 {
 
 // Helper constants
@@ -30,7 +32,6 @@ static uint32_t allocate_image_id()
 
 static utils::Vector<RtModuleDef*> g_loadedModuleDefs;
 static RtModuleDef* g_corlibModule = nullptr;
-
 
 void RtModuleDef::register_module_def(RtModuleDef* moduleDef)
 {
@@ -81,7 +82,7 @@ RtResult<const char*> RtModuleDef::get_string(uint32_t index) const
     {
         RET_OK(reinterpret_cast<const char*>(heap.data + index));
     }
-    RET_ERR(RtErr::BadImageFormat);
+    RET_ASSERT_ERR(RtErr::BadImageFormat);
 }
 
 RtResult<const uint8_t*> RtModuleDef::get_blob(uint32_t index) const
@@ -91,7 +92,7 @@ RtResult<const uint8_t*> RtModuleDef::get_blob(uint32_t index) const
     {
         RET_OK(heap.data + index);
     }
-    RET_ERR(RtErr::BadImageFormat);
+    RET_ASSERT_ERR(RtErr::BadImageFormat);
 }
 
 RtResult<vm::RtString*> RtModuleDef::get_user_string(uint32_t index)
@@ -104,14 +105,14 @@ RtResult<vm::RtString*> RtModuleDef::get_user_string(uint32_t index)
     auto& heap = _cliImage.get_us_heap();
     if (index >= heap.size)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     const uint8_t* data = heap.data + index;
     uint32_t str_size = 0;
     size_t size_length = 0;
     if (!utils::BinaryReader::try_decode_compressed_uint32(data, heap.size - index, str_size, size_length) || index + size_length + str_size > heap.size)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     if (str_size == 0)
     {
@@ -123,7 +124,7 @@ RtResult<vm::RtString*> RtModuleDef::get_user_string(uint32_t index)
         _userStringMap.insert({index, newStr});
         RET_OK(newStr);
     }
-    RET_ERR(RtErr::BadImageFormat);
+    RET_ASSERT_ERR(RtErr::BadImageFormat);
 }
 
 RtResultVoid RtModuleDef::load()
@@ -178,7 +179,7 @@ RtResultVoid RtModuleDef::setup_assembly_name()
     const auto opt_row = _cliImage.read_assembly(1);
     if (!opt_row)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     auto& row = opt_row.value();
@@ -262,16 +263,21 @@ RtResultVoid RtModuleDef::setup_nested_classes()
         _nestedTypeDefRid2EnclosingTypeDefRidMap.insert({nestedTypeDefRid, enclosingTypeDefRid});
         ++_enclosingTypeDefRid2StartRidMap[enclosingTypeDefRid].count;
     }
-    for (auto& [key, value] : _enclosingTypeDefRid2StartRidMap)
+    for (utils::HashMap<uint32_t, EnclosingTypeInfo>::iterator it = _enclosingTypeDefRid2StartRidMap.begin(); it != _enclosingTypeDefRid2StartRidMap.end();
+         ++it)
     {
+        EnclosingTypeInfo& value = it->second;
         value.nested_type_def_rids = _pool.calloc_any<uint32_t>(value.count);
         value.count = 0;
     }
-    for (auto& [nestedTypeDefRid, enclosingTypeDefRid] : _nestedTypeDefRid2EnclosingTypeDefRidMap)
+    for (utils::HashMap<uint32_t, uint32_t>::const_iterator map_it = _nestedTypeDefRid2EnclosingTypeDefRidMap.begin();
+         map_it != _nestedTypeDefRid2EnclosingTypeDefRidMap.end(); ++map_it)
     {
-        auto it = _enclosingTypeDefRid2StartRidMap.find(enclosingTypeDefRid);
-        assert(it != _enclosingTypeDefRid2StartRidMap.end());
-        EnclosingTypeInfo& eti = it->second;
+        uint32_t nestedTypeDefRid = map_it->first;
+        uint32_t enclosingTypeDefRid = map_it->second;
+        utils::HashMap<uint32_t, EnclosingTypeInfo>::iterator found_it = _enclosingTypeDefRid2StartRidMap.find(enclosingTypeDefRid);
+        assert(found_it != _enclosingTypeDefRid2StartRidMap.end());
+        EnclosingTypeInfo& eti = found_it->second;
         eti.nested_type_def_rids[eti.count++] = nestedTypeDefRid;
     }
     RET_VOID_OK();
@@ -344,7 +350,7 @@ RtResult<RtAssembly*> RtModuleDef::get_reference_assembly(uint32_t rid)
             assert(ref_asm.assembly);
             RET_OK(ref_asm.assembly);
         case AssemblyResolveStatus::NotFoundOrFailed:
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         case AssemblyResolveStatus::NotResolvedYet:
         {
             RowAssemblyRef rowRefAss = _cliImage.read_assembly_ref(rid).value();
@@ -357,7 +363,7 @@ RtResult<RtAssembly*> RtModuleDef::get_reference_assembly(uint32_t rid)
         }
         }
     }
-    RET_ERR(RtErr::BadImageFormat);
+    RET_ASSERT_ERR(RtErr::BadImageFormat);
 }
 
 RtResultVoid RtModuleDef::get_reference_assemblies(utils::Vector<RtAssembly*>& ref_assemblies)
@@ -392,7 +398,7 @@ RtResult<bool> RtModuleDef::is_value_type_or_enum(uint32_t encodedParentType)
         auto opt_row = _cliImage.read_type_ref(token.rid);
         if (!opt_row)
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         auto& row = opt_row.value();
         namespaceIdx = row.type_namespace;
@@ -404,7 +410,7 @@ RtResult<bool> RtModuleDef::is_value_type_or_enum(uint32_t encodedParentType)
         auto opt_row = _cliImage.read_type_def(token.rid);
         if (!opt_row)
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         auto& row = opt_row.value();
         namespaceIdx = row.type_namespace;
@@ -584,7 +590,7 @@ RtResult<const RtTypeSig*> RtModuleDef::get_generic_param_typesig_by_rid(uint32_
     {
         RET_OK((by_ref ? _genericParamByRefTypeSigs : _genericParamByValTypeSigs) + rid - 1);
     }
-    RET_ERR(RtErr::BadImageFormat);
+    RET_ASSERT_ERR(RtErr::BadImageFormat);
 }
 
 RtResult<RtClass*> RtModuleDef::get_class_by_name(const char* full_name, bool ignore_case, bool throw_exception_when_not_found)
@@ -602,7 +608,7 @@ RtResult<RtClass*> RtModuleDef::get_class_by_name(const char* full_name, bool ig
     }
     else
     {
-        size_t ns_len = last_dot - full_name;
+        size_t ns_len = static_cast<size_t>(last_dot - full_name);
         size_t name_len = std::strlen(last_dot + 1);
 
         char* allocated_namespace = static_cast<char*>(alloca(ns_len + 1));
@@ -633,15 +639,23 @@ RtResult<RtClass*> RtModuleDef::get_class_by_name2(const char* namespace_name, c
     }
     else
     {
-        for (const auto& [key, rid] : _typeDefFullName2TypeDefRidMap)
+        for (utils::HashMap<utils::FullNameStr, uint32_t, utils::FullNameStrHasher, utils::FullNameStrCompare>::const_iterator it =
+                 _typeDefFullName2TypeDefRidMap.begin();
+             it != _typeDefFullName2TypeDefRidMap.end(); ++it)
         {
+            const utils::FullNameStr& key = it->first;
+            uint32_t rid = it->second;
             if (utils::StringUtil::equals_ignorecase(key.namespace_name, namespace_name) && utils::StringUtil::equals_ignorecase(key.name, name))
             {
                 return get_class_by_type_def_rid(rid);
             }
         }
-        for (const auto& [key, token] : _typeDefFullName2ExportedTypeRidMap)
+        for (utils::HashMap<utils::FullNameStr, RtToken, utils::FullNameStrHasher, utils::FullNameStrCompare>::const_iterator it =
+                 _typeDefFullName2ExportedTypeRidMap.begin();
+             it != _typeDefFullName2ExportedTypeRidMap.end(); ++it)
         {
+            const utils::FullNameStr& key = it->first;
+            const RtToken& token = it->second;
             if (utils::StringUtil::equals_ignorecase(key.namespace_name, namespace_name) && utils::StringUtil::equals_ignorecase(key.name, name))
             {
                 return get_exported_class_by_token(token, namespace_name, name, true, throw_exception_when_not_found);
@@ -741,7 +755,7 @@ RtResult<RtClass*> RtModuleDef::get_class_by_type_def_rid(uint32_t rid)
         }
         RET_OK(class_ptr);
     }
-    RET_ERR(RtErr::BadImageFormat);
+    RET_ASSERT_ERR(RtErr::BadImageFormat);
 }
 
 RtResult<RtClass*> RtModuleDef::get_exported_class_by_token(const RtToken& token, const char* namespace_name, const char* name, bool ignore_case,
@@ -751,7 +765,7 @@ RtResult<RtClass*> RtModuleDef::get_exported_class_by_token(const RtToken& token
     {
     case TableType::File:
     {
-        RET_ERR(RtErr::NotImplemented);
+        RETURN_NOT_IMPLEMENTED_ERROR();
     }
     case TableType::AssemblyRef:
     {
@@ -763,7 +777,7 @@ RtResult<RtClass*> RtModuleDef::get_exported_class_by_token(const RtToken& token
         auto opt_row = _cliImage.read_exported_type(token.rid);
         if (!opt_row)
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         RowExportedType& row = opt_row.value();
         RtToken implementationToken = RtMetadata::decode_implementation_coded_index(row.implementation);
@@ -779,7 +793,7 @@ RtResult<RtClass*> RtModuleDef::get_exported_class_by_token(const RtToken& token
     }
     default:
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     }
     RET_OK(nullptr);
@@ -792,7 +806,7 @@ RtResult<uint32_t> RtModuleDef::get_exported_type_def_gid_by_token(const RtToken
     {
     case TableType::File:
     {
-        RET_ERR(RtErr::NotImplemented);
+        RETURN_NOT_IMPLEMENTED_ERROR();
     }
     case TableType::AssemblyRef:
     {
@@ -804,7 +818,7 @@ RtResult<uint32_t> RtModuleDef::get_exported_type_def_gid_by_token(const RtToken
         auto opt_row = _cliImage.read_exported_type(token.rid);
         if (!opt_row)
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         RowExportedType& row = opt_row.value();
         RtToken implementationToken = RtMetadata::decode_implementation_coded_index(row.implementation);
@@ -823,7 +837,7 @@ RtResult<uint32_t> RtModuleDef::get_exported_type_def_gid_by_token(const RtToken
     }
     default:
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     }
     RET_OK(0);
@@ -849,7 +863,7 @@ RtResult<uint32_t> RtModuleDef::get_type_def_gid_by_type_ref_rid(uint32_t rid)
     auto opt_row = _cliImage.read_type_ref(rid);
     if (!opt_row)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowTypeRef& row = opt_row.value();
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const char*, namespaceName, get_string(row.type_namespace));
@@ -863,7 +877,7 @@ RtResult<uint32_t> RtModuleDef::get_type_def_gid_by_type_ref_rid(uint32_t rid)
     }
     case TableType::ModuleRef:
     {
-        RET_ERR(RtErr::NotImplemented);
+        RETURN_NOT_IMPLEMENTED_ERROR();
     }
     case TableType::AssemblyRef:
     {
@@ -878,7 +892,7 @@ RtResult<uint32_t> RtModuleDef::get_type_def_gid_by_type_ref_rid(uint32_t rid)
     }
     default:
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     }
 }
@@ -888,7 +902,7 @@ RtResult<const RtTypeSig*> RtModuleDef::get_type_spec_typesig_by_rid(uint32_t ri
     auto opt_row = _cliImage.read_type_spec(rid);
     if (!opt_row)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowTypeSpec& row = opt_row.value();
     auto result = get_decoded_blob_reader(row.signature);
@@ -913,7 +927,7 @@ RtResult<const RtTypeSig*> RtModuleDef::get_typesig_by_type_def_ref_spec_token(c
     case TableType::TypeSpec:
         return get_type_spec_typesig_by_rid(token.rid, gcc, gc);
     default:
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 }
 
@@ -934,7 +948,7 @@ RtResult<RtClass*> RtModuleDef::get_class_by_type_def_ref_spec_token(const RtTok
     case TableType::TypeSpec:
         return get_class_by_type_spec_rid(token.rid, gcc, gc);
     default:
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 }
 
@@ -980,7 +994,7 @@ RtResult<const uint32_t*> RtModuleDef::read_u32_array(utils::BinaryReader& reade
     {
         if (!reader.try_read_compressed_uint32(arr[i]))
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
     }
     RET_OK(arr);
@@ -993,7 +1007,7 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
         uint8_t byteEleType = 0;
         if (!reader.try_read_byte(byteEleType))
         {
-            return RtErr::BadImageFormat;
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         RtElementType ele_type = static_cast<RtElementType>(byteEleType);
         result.ele_type = ele_type;
@@ -1028,7 +1042,12 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
         }
 
         case RtElementType::FnPtr:
-            RET_ERR(RtErr::NotImplemented);
+        {
+            auto ret_result = read_method_sig(reader, gcc, gc);
+            RET_ERR_ON_FAIL(ret_result);
+            result.data.method_sig = new (_pool.malloc_any_zeroed<RtMethodSig>()) RtMethodSig{std::move(ret_result.unwrap())};
+            RET_VOID_OK();
+        }
         case RtElementType::ByRef:
             result.by_ref = 1;
             // Continue loop to read the referenced type
@@ -1040,7 +1059,7 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
             uint32_t coded_index = 0;
             if (!reader.try_read_compressed_uint32(coded_index))
             {
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             RtToken token = RtMetadata::decode_type_def_ref_spec_coded_index(coded_index);
 
@@ -1059,14 +1078,14 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
                 auto row_opt = _cliImage.read_type_spec(token.rid);
                 if (!row_opt.has_value())
                 {
-                    return RtErr::BadImageFormat;
+                    RET_ASSERT_ERR(RtErr::BadImageFormat);
                 }
                 auto decoded_blob_result = get_decoded_blob_reader(row_opt->signature);
                 DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL2(utils::BinaryReader, spec_reader, decoded_blob_result);
                 return read_typesig_impl(spec_reader, gcc, gc, result);
             }
             default:
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             RET_VOID_OK();
         }
@@ -1076,12 +1095,12 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
             uint32_t rank;
             if (!reader.try_read_compressed_uint32(rank))
             {
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             uint32_t numSizes;
             if (!reader.try_read_compressed_uint32(numSizes))
             {
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             const uint32_t* sizes = nullptr;
             if (numSizes > 0)
@@ -1091,7 +1110,7 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
             uint32_t numLoBounds;
             if (!reader.try_read_compressed_uint32(numLoBounds))
             {
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             const uint32_t* loBounds = nullptr;
             if (numLoBounds > 0)
@@ -1100,16 +1119,16 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
             }
             if (numSizes == 0 && numLoBounds == 0)
             {
-                UNWRAP_OR_RET_ERR_ON_FAIL(result.data.array_type, metadata::MetadataCache::get_pooled_array_type(elementTypeSig, rank));
+                UNWRAP_OR_RET_ERR_ON_FAIL(result.data.array_type, metadata::MetadataCache::get_pooled_array_type(elementTypeSig, static_cast<uint8_t>(rank)));
             }
             else
             {
                 RtArrayType* newArrType = _pool.malloc_any_zeroed<RtArrayType>();
                 newArrType->ele_type = elementTypeSig;
-                newArrType->rank = rank;
-                newArrType->num_sizes = numSizes;
+                newArrType->rank = static_cast<uint8_t>(rank);
+                newArrType->num_sizes = static_cast<uint8_t>(numSizes);
                 newArrType->sizes = sizes;
-                newArrType->num_bounds = numLoBounds;
+                newArrType->num_bounds = static_cast<uint8_t>(numLoBounds);
                 newArrType->bounds = loBounds;
                 result.data.array_type = newArrType;
             }
@@ -1123,12 +1142,12 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
 
             if (baseTypeSig.ele_type != RtElementType::Class && baseTypeSig.ele_type != RtElementType::ValueType)
             {
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             uint32_t genericArgCount;
             if (!reader.try_read_compressed_uint32(genericArgCount) || genericArgCount > RT_MAX_GENERIC_PARAM_COUNT)
             {
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
 
             const RtTypeSig* tempGenericArgs[RT_MAX_GENERIC_PARAM_COUNT];
@@ -1137,7 +1156,7 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
                 UNWRAP_OR_RET_ERR_ON_FAIL(tempGenericArgs[i], read_typesig(reader, gcc, gc));
             }
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtGenericInst*, gi,
-                                                    metadata::MetadataCache::get_pooled_generic_inst(tempGenericArgs, genericArgCount));
+                                                    metadata::MetadataCache::get_pooled_generic_inst(tempGenericArgs, static_cast<uint8_t>(genericArgCount)));
             result.data.generic_class = metadata::MetadataCache::get_pooled_generic_class(baseTypeSig.data.type_def_gid, gi);
             RET_VOID_OK();
         }
@@ -1148,7 +1167,7 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
             uint32_t num = 0;
             if (!reader.try_read_compressed_uint32(num))
             {
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             bool is_mvar = (ele_type == RtElementType::MVar);
 
@@ -1160,7 +1179,7 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
                 {
                     if (num >= used_gi->generic_arg_count)
                     {
-                        return RtErr::BadImageFormat;
+                        RET_ASSERT_ERR(RtErr::BadImageFormat);
                     }
                     const RtTypeSig* arg = used_gi->generic_args[num];
                     // preserve flags like ByRef
@@ -1176,7 +1195,7 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
             {
                 if (num >= container->generic_param_count)
                 {
-                    return RtErr::BadImageFormat;
+                    RET_ASSERT_ERR(RtErr::BadImageFormat);
                 }
                 result.data.generic_param = &container->generic_params[num];
             }
@@ -1193,7 +1212,7 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
             uint32_t encoded_index = 0;
             if (!reader.try_read_compressed_uint32(encoded_index))
             {
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             RtToken token = RtMetadata::decode_type_def_ref_spec_coded_index(encoded_index);
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, mod_class, get_class_by_type_def_ref_spec_token(token, gcc, gc));
@@ -1220,7 +1239,7 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
             uint32_t encoded_index = 0;
             if (!reader.try_read_compressed_uint32(encoded_index))
             {
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             continue;
         }
@@ -1232,7 +1251,7 @@ RtResultVoid RtModuleDef::read_typesig_impl(utils::BinaryReader& reader, const R
 
         default:
             // Unknown element type
-            return RtErr::BadImageFormat;
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
     }
 
@@ -1247,7 +1266,7 @@ RtResultVoid RtModuleDef::read_type_modifier(utils::BinaryReader& reader, bool o
         uint8_t byteEleType = 0;
         if (!reader.try_read_byte(byteEleType))
         {
-            return RtErr::BadImageFormat;
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         RtElementType ele_type = static_cast<RtElementType>(byteEleType);
 
@@ -1259,7 +1278,7 @@ RtResultVoid RtModuleDef::read_type_modifier(utils::BinaryReader& reader, bool o
             uint32_t encoded_index = 0;
             if (!reader.try_read_compressed_uint32(encoded_index))
             {
-                return RtErr::BadImageFormat;
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             if (optional != (ele_type == RtElementType::CModReqd))
             {
@@ -1282,7 +1301,7 @@ RtResultVoid RtModuleDef::read_member_modifier(utils::BinaryReader& reader, bool
     uint8_t byteType;
     if (!reader.try_read_byte(byteType))
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     return read_type_modifier(reader, optional, gcc, gc, outMemberMods);
 }
@@ -1299,19 +1318,19 @@ RtResultVoid RtModuleDef::read_parameter_modifier(utils::BinaryReader& reader, i
     uint8_t byteType;
     if (!reader.try_read_byte(byteType))
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RtSigType sigType = RtMetadata::decode_sig_type(byteType);
     if ((uint8_t)sigType >= (uint8_t)RtSigType::Field)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     uint32_t genericParamCount;
     if (((uint8_t)sigType & (uint8_t)RtSigType::GenericInst) != 0)
     {
         if (!reader.try_read_compressed_uint32(genericParamCount) || genericParamCount > RT_MAX_GENERIC_PARAM_COUNT)
         {
-            return RtErr::BadImageFormat;
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
     }
     else
@@ -1322,7 +1341,7 @@ RtResultVoid RtModuleDef::read_parameter_modifier(utils::BinaryReader& reader, i
     uint32_t paramCount;
     if (!reader.try_read_compressed_uint32(paramCount) || paramCount > RT_MAX_PARAM_COUNT)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     if (index == -1)
     {
@@ -1330,7 +1349,7 @@ RtResultVoid RtModuleDef::read_parameter_modifier(utils::BinaryReader& reader, i
     }
     if ((uint32_t)index >= paramCount)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     for (int32_t i = 0; i < index; ++i)
     {
@@ -1344,12 +1363,12 @@ RtResult<const RtTypeSig*> RtModuleDef::read_field_sig(utils::BinaryReader& read
     uint8_t byteType;
     if (!reader.try_read_byte(byteType))
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RtSigType sigType = RtMetadata::decode_sig_type(byteType);
     if (sigType != RtSigType::Field)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     return read_typesig(reader, gcc, gc);
 }
@@ -1359,18 +1378,18 @@ RtResult<RtPropertySig> RtModuleDef::read_property_sig(utils::BinaryReader& read
     uint8_t byteType;
     if (!reader.try_read_byte(byteType))
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RtSigType sigType = RtMetadata::decode_sig_type(byteType);
     if (sigType != RtSigType::Property)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 
     uint32_t paramCount;
     if (!reader.try_read_compressed_uint32(paramCount) || paramCount > RT_MAX_PARAM_COUNT)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtTypeSig*, returnTypeSig, read_typesig(reader, gcc, gc));
 
@@ -1390,12 +1409,12 @@ RtResult<RtMethodSig> RtModuleDef::read_method_sig(utils::BinaryReader& reader, 
     uint8_t byteType;
     if (!reader.try_read_byte(byteType))
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RtSigType sigType = RtMetadata::decode_sig_type(byteType);
     if (sigType >= RtSigType::Field)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     return read_method_sig_skip_prologue(byteType, reader, gcc, gc);
 }
@@ -1408,7 +1427,7 @@ RtResult<RtMethodSig> RtModuleDef::read_method_sig_skip_prologue(uint8_t sigType
     {
         if (!reader.try_read_compressed_uint32(genericParamCount) || genericParamCount > RT_MAX_GENERIC_PARAM_COUNT)
         {
-            return RtErr::BadImageFormat;
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
     }
     else
@@ -1418,7 +1437,7 @@ RtResult<RtMethodSig> RtModuleDef::read_method_sig_skip_prologue(uint8_t sigType
     uint32_t paramCount;
     if (!reader.try_read_compressed_uint32(paramCount) || paramCount > RT_MAX_PARAM_COUNT)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtTypeSig*, returnTypeSig, read_typesig(reader, gcc, gc));
 
@@ -1430,7 +1449,7 @@ RtResult<RtMethodSig> RtModuleDef::read_method_sig_skip_prologue(uint8_t sigType
         UNWRAP_OR_RET_ERR_ON_FAIL(methodSig.params[i], read_typesig(reader, gcc, gc));
     }
     methodSig.flags = sigType;
-    methodSig.generic_param_count = genericParamCount;
+    methodSig.generic_param_count = static_cast<uint8_t>(genericParamCount);
     methodSig.return_type = returnTypeSig;
     RET_OK(methodSig);
 }
@@ -1441,7 +1460,7 @@ RtResult<RtMethodSig> RtModuleDef::read_stadalone_method_sig(EncodedTokenId stan
     auto optStandaloneSigRow = _cliImage.read_stand_alone_sig(RtToken::decode_rid(standaloneSigToken));
     if (!optStandaloneSigRow)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowStandaloneSig& row = optStandaloneSigRow.value();
     auto result = get_decoded_blob_reader(row.signature);
@@ -1455,24 +1474,24 @@ RtResult<const RtGenericInst*> RtModuleDef::read_method_spec_generic_inst(utils:
     uint8_t byteType;
     if (!reader.try_read_byte(byteType))
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RtSigType sigType = RtMetadata::decode_sig_type(byteType);
     if (sigType != RtSigType::MethodSpec)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     uint32_t genericArgCount;
     if (!reader.try_read_compressed_uint32(genericArgCount) || genericArgCount > RT_MAX_GENERIC_PARAM_COUNT)
     {
-        return RtErr::BadImageFormat;
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     const RtTypeSig* tempGenericArgs[RT_MAX_GENERIC_PARAM_COUNT];
     for (uint32_t i = 0; i < genericArgCount; ++i)
     {
         UNWRAP_OR_RET_ERR_ON_FAIL(tempGenericArgs[i], read_typesig(reader, gcc, gc));
     }
-    return metadata::MetadataCache::get_pooled_generic_inst(tempGenericArgs, genericArgCount);
+    return metadata::MetadataCache::get_pooled_generic_inst(tempGenericArgs, static_cast<uint8_t>(genericArgCount));
 }
 
 RtResult<const RtTypeSig*> RtModuleDef::read_typesig_from_member_parent(const RtToken& token, const RtGenericContainerContext& gcc, const RtGenericContext* gc)
@@ -1484,7 +1503,7 @@ RtResult<const RtTypeSig*> RtModuleDef::read_typesig_from_member_parent(const Rt
     case TableType::TypeSpec:
         return get_typesig_by_type_def_ref_spec_token(token, gcc, gc);
     default:
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 }
 
@@ -1494,7 +1513,7 @@ RtResultVoid RtModuleDef::read_local_var_sig(EncodedTokenId localVarSigToken, co
     auto optStandaloneSigRow = _cliImage.read_stand_alone_sig(RtToken::decode_rid(localVarSigToken));
     if (!optStandaloneSigRow)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowStandaloneSig& row = optStandaloneSigRow.value();
     auto result = get_decoded_blob_reader(row.signature);
@@ -1502,17 +1521,17 @@ RtResultVoid RtModuleDef::read_local_var_sig(EncodedTokenId localVarSigToken, co
     uint8_t byteType;
     if (!reader.try_read_byte(byteType))
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RtSigType sigType = RtMetadata::decode_sig_type(byteType);
     if (sigType != RtSigType::LocalVar)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     uint32_t localVarCount;
     if (!reader.try_read_compressed_uint32(localVarCount) || localVarCount > RT_MAX_LOCAL_VAR_COUNT)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     outLocalVarTypeSigs.reserve(localVarCount);
     for (uint32_t i = 0; i < localVarCount; ++i)
@@ -1535,7 +1554,7 @@ RtResult<std::optional<RowImplMap>> RtModuleDef::read_method_impl_map(EncodedTok
     auto optRow = _cliImage.read_impl_map(optRid.value());
     if (!optRow)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RET_OK(optRow);
 }
@@ -1545,7 +1564,7 @@ RtResult<std::optional<RtMethodBody>> RtModuleDef::read_method_body(EncodedToken
     auto optMethodRow = _cliImage.read_method(RtToken::decode_rid(methodDefToken));
     if (!optMethodRow)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowMethod& methodRow = optMethodRow.value();
     if (methodRow.rva == 0)
@@ -1557,7 +1576,7 @@ RtResult<std::optional<RtMethodBody>> RtModuleDef::read_method_body(EncodedToken
     {
         RET_ERR(result.unwrap_err());
     }
-    RET_OK(std::optional(result.unwrap()));
+    RET_OK(std::optional<RtMethodBody>(result.unwrap()));
 }
 
 RtResult<RtMethodBody> RtModuleDef::read_method_body_from_rva(uint32_t rva)
@@ -1566,7 +1585,7 @@ RtResult<RtMethodBody> RtModuleDef::read_method_body_from_rva(uint32_t rva)
     auto optBodyDataOffset = _cliImage.rva_to_image_offset(rva);
     if (!optBodyDataOffset)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     uint32_t bodyDataOffset = optBodyDataOffset.value();
     const uint8_t* bodyDataPtr = _cliImage.get_image_data_at(bodyDataOffset);
@@ -1575,7 +1594,7 @@ RtResult<RtMethodBody> RtModuleDef::read_method_body_from_rva(uint32_t rva)
     uint8_t bodyFlags;
     if (!reader.try_peek_byte(bodyFlags))
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RtILMethodFormat smallFat = (RtILMethodFormat)(bodyFlags & 0x3);
     RtMethodBody body;
@@ -1591,51 +1610,51 @@ RtResult<RtMethodBody> RtModuleDef::read_method_body_from_rva(uint32_t rva)
     {
         if (!reader.try_align_up_position(4))
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         auto fatHeader = (const RtILMethodFatHeader*)reader.get_current_ptr();
         uint16_t flags = fatHeader->flags;
         uint16_t headerSize = fatHeader->size;
         if (headerSize != 3)
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         if (!reader.try_advance(sizeof(RtILMethodFatHeader)))
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         const uint8_t* codes = reader.get_current_ptr();
         if (!reader.try_advance(fatHeader->code_size))
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         if ((flags & (uint16_t)RtILMethodFormat::MoreSects) != 0)
         {
             if (!reader.try_align_up_position(4))
             {
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             while (true)
             {
                 uint8_t sectKind;
                 if (!reader.try_peek_byte(sectKind))
                 {
-                    RET_ERR(RtErr::BadImageFormat);
+                    RET_ASSERT_ERR(RtErr::BadImageFormat);
                 }
                 if ((sectKind & (uint8_t)RtILSection::EHTable) == 0)
                 {
-                    RET_ERR(RtErr::NotImplemented);
+                    RETURN_NOT_IMPLEMENTED_ERROR();
                 }
                 if ((sectKind & (uint8_t)RtILSection::FatFormat) == 0)
                 {
                     auto ehHeader = (const RtILEHSectionHeaderSmall*)reader.get_current_ptr();
                     if (ehHeader->data_size % 12 != 4)
                     {
-                        RET_ERR(RtErr::BadImageFormat);
+                        RET_ASSERT_ERR(RtErr::BadImageFormat);
                     }
                     if (!reader.try_advance(ehHeader->data_size))
                     {
-                        RET_ERR(RtErr::BadImageFormat);
+                        RET_ASSERT_ERR(RtErr::BadImageFormat);
                     }
 
                     size_t clauseCount = (ehHeader->data_size - 4) / 12;
@@ -1658,11 +1677,11 @@ RtResult<RtMethodBody> RtModuleDef::read_method_body_from_rva(uint32_t rva)
                     auto ehHeader = (const RtILEHSectionHeaderFat*)reader.get_current_ptr();
                     if (ehHeader->data_size % 24 != 4)
                     {
-                        RET_ERR(RtErr::BadImageFormat);
+                        RET_ASSERT_ERR(RtErr::BadImageFormat);
                     }
                     if (!reader.try_advance(ehHeader->data_size))
                     {
-                        RET_ERR(RtErr::BadImageFormat);
+                        RET_ASSERT_ERR(RtErr::BadImageFormat);
                     }
                     size_t clauseCount = (ehHeader->data_size - 4) / 24;
                     body.exception_clauses.reserve(clauseCount);
@@ -1693,7 +1712,7 @@ RtResult<RtMethodBody> RtModuleDef::read_method_body_from_rva(uint32_t rva)
     }
     else
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RET_OK(body);
 }
@@ -1715,7 +1734,7 @@ RtResult<const RtGenericContainer*> RtModuleDef::get_generic_container(EncodedTo
             auto opt_typeDefRid = _cliImage.find_last_row_less_equal(TableType::TypeDef, 5, methodDefRid);
             if (!opt_typeDefRid)
             {
-                RET_ERR(RtErr::BadImageFormat);
+                RET_ASSERT_ERR(RtErr::BadImageFormat);
             }
             EncodedTokenId typeDefToken = RtToken::encode(TableType::TypeDef, opt_typeDefRid.value());
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtGenericContainer*, classOwner, get_generic_container(typeDefToken));
@@ -1733,7 +1752,7 @@ RtResult<const RtGenericContainer*> RtModuleDef::get_generic_container(EncodedTo
             uint32_t genericParamRid = RtMetadata::decode_rid_from_gid(gpInfo->gid);
             DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtGenericParamConstraint, constraintInfo, read_generic_param_constraints(genericParamRid, gcc));
             gpInfo->constraint_type_sigs = constraintInfo.constraints;
-            gpInfo->constraint_type_sig_count = constraintInfo.count;
+            gpInfo->constraint_type_sig_count = static_cast<uint8_t>(constraintInfo.count);
         }
         const_cast<RtGenericContainer*>(gc)->inited = true;
     }
@@ -1759,7 +1778,7 @@ RtResult<RtCustomAttributeRawData> RtModuleDef::get_custom_attribute_raw_data(ui
     auto optRow = _cliImage.read_custom_attribute(customAttributeRid);
     if (!optRow)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowCustomAttribute& row = optRow.value();
     RtToken constructorToken = RtMetadata::decode_custom_attribute_type_coded_index(row.type_);
@@ -1771,7 +1790,7 @@ RtResult<RtCustomAttributeRawData> RtModuleDef::get_custom_attribute_raw_data(ui
 
 RtResult<RtModuleDef::RtGenericParamConstraint> RtModuleDef::read_generic_param_constraints(uint32_t genericParamRid, const RtGenericContainerContext& gcc)
 {
-    auto opt_range = _cliImage.find_row_range_of_owner_at_sorted_table(TableType::GenericParamConstraint, 1, genericParamRid);
+    auto opt_range = _cliImage.find_row_range_of_owner_at_sorted_table(TableType::GenericParamConstraint, 0, genericParamRid);
     if (!opt_range)
     {
         RET_OK(RtGenericParamConstraint{});
@@ -1781,7 +1800,7 @@ RtResult<RtModuleDef::RtGenericParamConstraint> RtModuleDef::read_generic_param_
     uint32_t count = range.ridEnd - ridStart;
     if (count > RT_MAX_GENERIC_PARAM_CONSTRAINT_COUNT)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     const RtTypeSig** constraints = _pool.calloc_any<const RtTypeSig*>(count);
     for (uint32_t i = 0; i < count; ++i)
@@ -1790,7 +1809,7 @@ RtResult<RtModuleDef::RtGenericParamConstraint> RtModuleDef::read_generic_param_
         auto opt_row = _cliImage.read_generic_param_constraint(constraintRid);
         if (!opt_row)
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         RowGenericParamConstraint& row = opt_row.value();
         RtToken token = RtMetadata::decode_type_def_ref_spec_coded_index(row.constraint);
@@ -1803,7 +1822,7 @@ RtResult<const RtMethodInfo*> RtModuleDef::get_method_by_rid(uint32_t rid)
 {
     if (rid == 0 || rid > _methodCount)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     const RtMethodInfo* method = _methods[rid - 1];
     if (method)
@@ -1814,7 +1833,7 @@ RtResult<const RtMethodInfo*> RtModuleDef::get_method_by_rid(uint32_t rid)
     auto opt_typeDefRid = _cliImage.find_last_row_less_equal(TableType::TypeDef, 5, rid);
     if (!opt_typeDefRid)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     uint32_t typeDefRid = opt_typeDefRid.value();
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtClass*, klass, get_class_by_type_def_rid(typeDefRid));
@@ -1834,7 +1853,7 @@ RtResult<const RtMethodInfo*> RtModuleDef::get_method_by_member_ref_rid(uint32_t
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL2(RtRuntimeHandle, memberHandle, result);
     if (memberHandle.type != RtRuntimeHandleType::Method)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RET_OK(memberHandle.method);
 }
@@ -1844,7 +1863,7 @@ RtResult<const RtMethodInfo*> RtModuleDef::get_method_by_method_spec_rid(uint32_
     auto opt_row = _cliImage.read_method_spec(rid);
     if (!opt_row)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowMethodSpec& row = opt_row.value();
     RtToken methodToken = RtMetadata::decode_method_def_or_ref_coded_index(row.method);
@@ -1868,7 +1887,7 @@ RtResult<const RtMethodInfo*> RtModuleDef::get_method_by_token(const RtToken& to
     case TableType::MethodSpec:
         return get_method_by_method_spec_rid(token.rid, gcc, gc);
     default:
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 }
 
@@ -1876,12 +1895,12 @@ RtResult<const RtFieldInfo*> RtModuleDef::get_field_by_rid(uint32_t rid)
 {
     if (rid == 0 || rid > _cliImage.get_table_row_num(TableType::Field))
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     auto opt_typeDefRid = _cliImage.find_last_row_less_equal(TableType::TypeDef, 4, rid);
     if (!opt_typeDefRid)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     uint32_t typeDefRid = opt_typeDefRid.value();
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtClass*, klass, get_class_by_type_def_rid(typeDefRid));
@@ -1901,7 +1920,7 @@ RtResult<const RtFieldInfo*> RtModuleDef::get_field_by_member_ref_rid(uint32_t r
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL2(RtRuntimeHandle, memberHandle, result);
     if (memberHandle.type != RtRuntimeHandleType::Field)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RET_OK(memberHandle.field);
 }
@@ -1915,7 +1934,7 @@ RtResult<const RtFieldInfo*> RtModuleDef::get_field_by_token(const RtToken& toke
     case TableType::MemberRef:
         return get_field_by_member_ref_rid(token.rid, gcc, gc);
     default:
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 }
 
@@ -1924,7 +1943,7 @@ RtResult<RtRuntimeHandle> RtModuleDef::get_member_ref_by_rid(uint32_t memberRefR
     auto opt_row = _cliImage.read_member_ref(memberRefRid);
     if (!opt_row)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowMemberRef& row = opt_row.value();
     RtToken parentToken = RtMetadata::decode_member_ref_parent_coded_index(row.class_idx);
@@ -1934,7 +1953,7 @@ RtResult<RtRuntimeHandle> RtModuleDef::get_member_ref_by_rid(uint32_t memberRefR
     uint8_t byteType;
     if (!reader.try_read_byte(byteType))
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RtSigType sigType = RtMetadata::decode_sig_type(byteType);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const char*, name, get_string(row.name));
@@ -1955,11 +1974,13 @@ RtResult<RtRuntimeHandle> RtModuleDef::get_member_ref_by_rid(uint32_t memberRefR
     }
     }
 
+    RtGenericContainerContext declaring_gcc = vm::Class::get_generic_container_context(baseClass);
+
     if (sigType == RtSigType::Field)
     {
         // Find field in baseClass by name
         RET_ERR_ON_FAIL(vm::Class::initialize_fields(baseClass));
-        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtTypeSig*, fieldTypeSig, read_typesig(reader, gcc, nullptr));
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtTypeSig*, fieldTypeSig, read_typesig(reader, declaring_gcc, nullptr));
         for (uint32_t i = 0; i < baseClass->field_count; ++i)
         {
             const RtFieldInfo* field = baseClass->fields + i;
@@ -1987,7 +2008,7 @@ RtResult<RtRuntimeHandle> RtModuleDef::get_member_ref_by_rid(uint32_t memberRefR
     else if (sigType < RtSigType::Field)
     {
         // Find method in baseClass by name
-        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtMethodSig, methodSig, read_method_sig_skip_prologue(byteType, reader, gcc, nullptr));
+        DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtMethodSig, methodSig, read_method_sig_skip_prologue(byteType, reader, declaring_gcc, nullptr));
         RET_ERR_ON_FAIL(vm::Class::initialize_methods(baseClass));
         for (uint32_t i = 0; i < baseClass->method_count; ++i)
         {
@@ -2028,7 +2049,7 @@ RtResult<RtRuntimeHandle> RtModuleDef::get_member_ref_by_rid(uint32_t memberRefR
     }
     else
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
 }
 
@@ -2066,13 +2087,13 @@ RtResult<const uint8_t*> RtModuleDef::get_field_rva_data(EncodedTokenId fieldTok
     auto optRow = _cliImage.read_field_rva(fieldRvaRid);
     if (!optRow)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowFieldRva& row = optRow.value();
     auto optOffset = _cliImage.rva_to_image_offset(row.rva);
     if (!optOffset)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     uint32_t offset = optOffset.value();
     RET_OK(_cliImage.get_image_data() + offset);
@@ -2085,12 +2106,12 @@ RtResult<utils::BinaryReader> RtModuleDef::get_const_or_default_value(EncodedTok
     auto optConstRid = _cliImage.find_row_of_owner(TableType::Constant, 2, encodedIndex);
     if (!optConstRid)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     auto optRow = _cliImage.read_constant(optConstRid.value());
     if (!optRow)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowConstant& row = optRow.value();
     return get_decoded_blob_reader(row.value);
@@ -2102,7 +2123,7 @@ RtResult<EncodedTokenId> RtModuleDef::get_parameter_token(EncodedTokenId methodD
     auto optMethodRow = _cliImage.read_method(methodRid);
     if (!optMethodRow)
     {
-        RET_ERR(RtErr::BadImageFormat);
+        RET_ASSERT_ERR(RtErr::BadImageFormat);
     }
     RowMethod& methodRow = optMethodRow.value();
     uint32_t paramRidStart = methodRow.param_list;
@@ -2122,7 +2143,7 @@ RtResult<EncodedTokenId> RtModuleDef::get_parameter_token(EncodedTokenId methodD
         auto optParamRow = _cliImage.read_param(rid);
         if (!optParamRow)
         {
-            RET_ERR(RtErr::BadImageFormat);
+            RET_ASSERT_ERR(RtErr::BadImageFormat);
         }
         RowParam& paramRow = optParamRow.value();
         // sequence is 1-based index, 0 means return value
@@ -2189,4 +2210,5 @@ void RtModuleDef::fill_assembly_name(RtMonoAssemblyName& out) const
     out.flags = _assemblyName.flags;
 }
 
-} // namespace leanclr::metadata
+} // namespace metadata
+} // namespace leanclr

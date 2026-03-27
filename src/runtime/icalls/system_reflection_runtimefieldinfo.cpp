@@ -5,12 +5,14 @@
 #include "vm/reflection.h"
 #include "vm/rt_array.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 // ========== Implementation Functions ==========
 
-RtResult<uint32_t> SystemReflectionRuntimeFieldInfo::get_metadata_token(vm::RtReflectionField* field)
+RtResult<uint32_t> SystemReflectionRuntimeFieldInfo::get_metadata_token(vm::RtReflectionField* field) noexcept
 {
     if (field == nullptr)
     {
@@ -20,7 +22,7 @@ RtResult<uint32_t> SystemReflectionRuntimeFieldInfo::get_metadata_token(vm::RtRe
     RET_OK(field_info->token);
 }
 
-RtResult<int32_t> SystemReflectionRuntimeFieldInfo::get_field_offset(vm::RtReflectionField* field)
+RtResult<int32_t> SystemReflectionRuntimeFieldInfo::get_field_offset(vm::RtReflectionField* field) noexcept
 {
     if (field == nullptr)
     {
@@ -30,7 +32,7 @@ RtResult<int32_t> SystemReflectionRuntimeFieldInfo::get_field_offset(vm::RtRefle
     RET_OK(static_cast<int32_t>(vm::Field::get_field_offset_excludes_object_header_for_all_type(field_info)));
 }
 
-RtResult<vm::RtObject*> SystemReflectionRuntimeFieldInfo::get_raw_const_value(vm::RtReflectionField* field)
+RtResult<vm::RtObject*> SystemReflectionRuntimeFieldInfo::get_raw_const_value(vm::RtReflectionField* field) noexcept
 {
     if (field == nullptr)
     {
@@ -40,31 +42,31 @@ RtResult<vm::RtObject*> SystemReflectionRuntimeFieldInfo::get_raw_const_value(vm
     return vm::Field::get_field_const_object(field_info);
 }
 
-RtResult<vm::RtObject*> SystemReflectionRuntimeFieldInfo::get_value_internal(vm::RtReflectionField* field, vm::RtObject* obj)
+RtResult<vm::RtObject*> SystemReflectionRuntimeFieldInfo::get_value_internal(vm::RtReflectionField* field, vm::RtObject* obj) noexcept
 {
     const metadata::RtFieldInfo* field_info = field->field;
     return vm::Field::get_value_object(field_info, obj);
 }
 
-RtResult<vm::RtObject*> SystemReflectionRuntimeFieldInfo::unsafe_get_value(vm::RtReflectionField* field, vm::RtObject* obj)
+RtResult<vm::RtObject*> SystemReflectionRuntimeFieldInfo::unsafe_get_value(vm::RtReflectionField* field, vm::RtObject* obj) noexcept
 {
     const metadata::RtFieldInfo* field_info = field->field;
     return vm::Field::get_value_object(field_info, obj);
 }
 
-RtResultVoid SystemReflectionRuntimeFieldInfo::set_value_internal(vm::RtReflectionField* field, vm::RtObject* obj, vm::RtObject* value)
+RtResultVoid SystemReflectionRuntimeFieldInfo::set_value_internal(vm::RtReflectionField* field, vm::RtObject* obj, vm::RtObject* value) noexcept
 {
     const metadata::RtFieldInfo* field_info = field->field;
     return vm::Field::set_value_object(field_info, obj, value);
 }
 
-RtResult<vm::RtReflectionType*> SystemReflectionRuntimeFieldInfo::get_parent_type(vm::RtReflectionField* field, bool declaring)
+RtResult<vm::RtReflectionType*> SystemReflectionRuntimeFieldInfo::get_parent_type(vm::RtReflectionField* field, bool declaring) noexcept
 {
-    metadata::RtClass* parent = declaring ? field->field->parent : field->klass;
+    const metadata::RtClass* parent = declaring ? field->field->parent : field->klass;
     return vm::Reflection::get_klass_reflection_object(parent);
 }
 
-RtResult<vm::RtReflectionType*> SystemReflectionRuntimeFieldInfo::resolve_type(vm::RtReflectionField* field)
+RtResult<vm::RtReflectionType*> SystemReflectionRuntimeFieldInfo::resolve_type(vm::RtReflectionField* field) noexcept
 {
     const metadata::RtFieldInfo* field_info = field->field;
     const metadata::RtTypeSig* type_sig = field_info->type_sig;
@@ -72,7 +74,7 @@ RtResult<vm::RtReflectionType*> SystemReflectionRuntimeFieldInfo::resolve_type(v
     return vm::Reflection::get_klass_reflection_object(klass);
 }
 
-RtResult<vm::RtArray*> SystemReflectionRuntimeFieldInfo::get_type_modifiers(vm::RtReflectionField* field, bool optional)
+RtResult<vm::RtArray*> SystemReflectionRuntimeFieldInfo::get_type_modifiers(vm::RtReflectionField* field, bool optional) noexcept
 {
     const metadata::RtFieldInfo* field_info = field->field;
 
@@ -94,8 +96,8 @@ RtResult<vm::RtArray*> SystemReflectionRuntimeFieldInfo::get_type_modifiers(vm::
 // ========== Invoker Functions ==========
 
 /// @icall: System.Reflection.RuntimeFieldInfo::get_metadata_token
-static RtResultVoid get_metadata_token_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                               interp::RtStackObject* ret)
+static RtResultVoid get_metadata_token_invoker_system_reflection_runtimefieldinfo(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*,
+                                                                                  const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionField* field = EvalStackOp::get_param<vm::RtReflectionField*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(uint32_t, result, SystemReflectionRuntimeFieldInfo::get_metadata_token(field));
@@ -105,7 +107,7 @@ static RtResultVoid get_metadata_token_invoker(metadata::RtManagedMethodPointer,
 
 /// @icall: System.Reflection.RuntimeFieldInfo::GetFieldOffset
 static RtResultVoid get_field_offset_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                             interp::RtStackObject* ret)
+                                             interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionField* field = EvalStackOp::get_param<vm::RtReflectionField*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(int32_t, result, SystemReflectionRuntimeFieldInfo::get_field_offset(field));
@@ -115,7 +117,7 @@ static RtResultVoid get_field_offset_invoker(metadata::RtManagedMethodPointer, c
 
 /// @icall: System.Reflection.RuntimeFieldInfo::GetRawConstantValue
 static RtResultVoid get_raw_const_value_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                                interp::RtStackObject* ret)
+                                                interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionField* field = EvalStackOp::get_param<vm::RtReflectionField*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtObject*, result, SystemReflectionRuntimeFieldInfo::get_raw_const_value(field));
@@ -125,7 +127,7 @@ static RtResultVoid get_raw_const_value_invoker(metadata::RtManagedMethodPointer
 
 /// @icall: System.Reflection.RuntimeFieldInfo::GetValueInternal
 static RtResultVoid get_value_internal_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                               interp::RtStackObject* ret)
+                                               interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionField* field = EvalStackOp::get_param<vm::RtReflectionField*>(params, 0);
     vm::RtObject* obj = EvalStackOp::get_param<vm::RtObject*>(params, 1);
@@ -136,7 +138,7 @@ static RtResultVoid get_value_internal_invoker(metadata::RtManagedMethodPointer,
 
 /// @icall: System.Reflection.RuntimeFieldInfo::UnsafeGetValue
 static RtResultVoid unsafe_get_value_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                             interp::RtStackObject* ret)
+                                             interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionField* field = EvalStackOp::get_param<vm::RtReflectionField*>(params, 0);
     vm::RtObject* obj = EvalStackOp::get_param<vm::RtObject*>(params, 1);
@@ -147,7 +149,7 @@ static RtResultVoid unsafe_get_value_invoker(metadata::RtManagedMethodPointer, c
 
 /// @icall: System.Reflection.RuntimeFieldInfo::SetValueInternal(System.Reflection.FieldInfo,System.Object,System.Object)
 static RtResultVoid set_value_internal_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                               interp::RtStackObject* ret)
+                                               interp::RtStackObject* ret) noexcept
 {
     (void)ret;
     vm::RtReflectionField* field = EvalStackOp::get_param<vm::RtReflectionField*>(params, 0);
@@ -158,7 +160,7 @@ static RtResultVoid set_value_internal_invoker(metadata::RtManagedMethodPointer,
 
 /// @icall: System.Reflection.RuntimeFieldInfo::GetParentType
 static RtResultVoid get_parent_type_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                            interp::RtStackObject* ret)
+                                            interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionField* field = EvalStackOp::get_param<vm::RtReflectionField*>(params, 0);
     bool declaring = EvalStackOp::get_param<bool>(params, 1);
@@ -169,7 +171,7 @@ static RtResultVoid get_parent_type_invoker(metadata::RtManagedMethodPointer, co
 
 /// @icall: System.Reflection.RuntimeFieldInfo::ResolveType
 static RtResultVoid resolve_type_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                         interp::RtStackObject* ret)
+                                         interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionField* field = EvalStackOp::get_param<vm::RtReflectionField*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtReflectionType*, result, SystemReflectionRuntimeFieldInfo::resolve_type(field));
@@ -178,8 +180,8 @@ static RtResultVoid resolve_type_invoker(metadata::RtManagedMethodPointer, const
 }
 
 /// @icall: System.Reflection.RuntimeFieldInfo::GetTypeModifiers(System.Boolean)
-static RtResultVoid get_type_modifiers_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                               interp::RtStackObject* ret)
+static RtResultVoid runtimefieldinfo_get_type_modifiers_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*,
+                                                                const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     vm::RtReflectionField* field = EvalStackOp::get_param<vm::RtReflectionField*>(params, 0);
     bool optional = EvalStackOp::get_param<bool>(params, 1);
@@ -190,9 +192,9 @@ static RtResultVoid get_type_modifiers_invoker(metadata::RtManagedMethodPointer,
 
 // ========== Registration ==========
 
-static vm::InternalCallEntry s_internal_call_entries[] = {
+static vm::InternalCallEntry s_internal_call_entries_system_reflection_runtimefieldinfo[] = {
     {"System.Reflection.RuntimeFieldInfo::get_metadata_token", (vm::InternalCallFunction)&SystemReflectionRuntimeFieldInfo::get_metadata_token,
-     get_metadata_token_invoker},
+     get_metadata_token_invoker_system_reflection_runtimefieldinfo},
     {"System.Reflection.RuntimeFieldInfo::GetFieldOffset", (vm::InternalCallFunction)&SystemReflectionRuntimeFieldInfo::get_field_offset,
      get_field_offset_invoker},
     {"System.Reflection.RuntimeFieldInfo::GetRawConstantValue", (vm::InternalCallFunction)&SystemReflectionRuntimeFieldInfo::get_raw_const_value,
@@ -207,13 +209,15 @@ static vm::InternalCallEntry s_internal_call_entries[] = {
      get_parent_type_invoker},
     {"System.Reflection.RuntimeFieldInfo::ResolveType", (vm::InternalCallFunction)&SystemReflectionRuntimeFieldInfo::resolve_type, resolve_type_invoker},
     {"System.Reflection.RuntimeFieldInfo::GetTypeModifiers(System.Boolean)", (vm::InternalCallFunction)&SystemReflectionRuntimeFieldInfo::get_type_modifiers,
-     get_type_modifiers_invoker},
+     runtimefieldinfo_get_type_modifiers_invoker},
 };
 
-utils::Span<vm::InternalCallEntry> SystemReflectionRuntimeFieldInfo::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemReflectionRuntimeFieldInfo::get_internal_call_entries() noexcept
 {
-    constexpr size_t entry_count = sizeof(s_internal_call_entries) / sizeof(s_internal_call_entries[0]);
-    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries, entry_count);
+    constexpr size_t entry_count =
+        sizeof(s_internal_call_entries_system_reflection_runtimefieldinfo) / sizeof(s_internal_call_entries_system_reflection_runtimefieldinfo[0]);
+    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries_system_reflection_runtimefieldinfo, entry_count);
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

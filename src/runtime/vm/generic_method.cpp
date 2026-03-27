@@ -10,7 +10,9 @@
 #include "utils/hashmap.h"
 #include "alloc/mem_pool.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 using namespace leanclr::metadata;
 using namespace leanclr::core;
@@ -23,10 +25,11 @@ static HashMap<const RtGenericMethod*, const RtMethodInfo*> g_method_map;
 RtResult<const RtMethodInfo*> GenericMethod::get_method(const RtMethodInfo* methodDef, const RtGenericInst* classInst, const RtGenericInst* methodInst)
 {
     assert(methodDef != nullptr);
+    assert(methodDef->generic_method == nullptr);
     assert(classInst != nullptr || methodInst != nullptr);
 
     bool need_inflate = false;
-    RtClass* parent = methodDef->parent;
+    const RtClass* parent = methodDef->parent;
     RtGenericInst* class_inst_mut = const_cast<RtGenericInst*>(classInst);
 
     // Check if class needs inflation
@@ -84,6 +87,9 @@ RtResult<const RtMethodInfo*> GenericMethod::get_method(const RtMethodInfo* meth
 
 RtResult<const RtMethodInfo*> GenericMethod::get_method_from_pooled_generic_method(const RtGenericMethod* genericMethod)
 {
+    const RtGenericInst* class_inst = genericMethod->generic_context.class_inst;
+    const RtGenericInst* method_inst = genericMethod->generic_context.method_inst;
+    assert(class_inst || method_inst);
     auto it = g_method_map.find(genericMethod);
     if (it != g_method_map.end())
     {
@@ -93,12 +99,15 @@ RtResult<const RtMethodInfo*> GenericMethod::get_method_from_pooled_generic_meth
     uint32_t base_method_gid = genericMethod->base_method_gid;
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(const RtMethodInfo*, base_method, Method::get_method_by_method_def_gid(base_method_gid));
 
+    assert(!class_inst || class_inst->generic_arg_count == base_method->parent->generic_container->generic_param_count);
+    assert(!method_inst || method_inst->generic_arg_count == base_method->generic_container->generic_param_count);
+
     alloc::MemPool& pool = base_method->parent->image->get_mem_pool();
     RtMethodInfo* new_method = pool.malloc_any_zeroed<RtMethodInfo>();
     const RtGenericContext& generic_context = genericMethod->generic_context;
 
     // Determine parent class (inflated if needed)
-    RtClass* parent_klass = nullptr;
+    const RtClass* parent_klass = nullptr;
     if (generic_context.class_inst == nullptr)
     {
         parent_klass = base_method->parent;
@@ -167,4 +176,5 @@ RtResult<const RtMethodInfo*> GenericMethod::get_method_from_pooled_generic_meth
     RET_OK(new_method);
 }
 
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

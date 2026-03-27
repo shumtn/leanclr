@@ -2,17 +2,19 @@
 
 #include "platform/rt_time.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResult<int64_t> SystemThreadingTimer::get_time_monotonic()
+RtResult<int64_t> SystemThreadingTimer::get_time_monotonic() noexcept
 {
     RET_OK(os::Time::get_ticks_100nanos());
 }
 
 /// @icall: System.Threading.Timer::GetTimeMonotonic()
 static RtResultVoid get_time_monotonic_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                               const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                               const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -22,7 +24,7 @@ static RtResultVoid get_time_monotonic_invoker(metadata::RtManagedMethodPointer 
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemThreadingTimer::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemThreadingTimer::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Threading.Timer::GetTimeMonotonic()", (vm::InternalCallFunction)&SystemThreadingTimer::get_time_monotonic, get_time_monotonic_invoker},
@@ -30,4 +32,5 @@ utils::Span<vm::InternalCallEntry> SystemThreadingTimer::get_internal_call_entri
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

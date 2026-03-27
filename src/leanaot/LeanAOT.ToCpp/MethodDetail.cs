@@ -1,4 +1,4 @@
-﻿using dnlib.DotNet;
+using dnlib.DotNet;
 using LeanAOT.Core;
 using System.Text;
 
@@ -203,7 +203,7 @@ namespace LeanAOT.ToCpp
 
         public string GenerateMethodDeclaring()
         {
-            return $"{MethodGenerationUtil.GetResultTypeName(_retType)} {_uniqueName}({CreateMethodParameters()})";
+            return $"{MethodGenerationUtil.GetResultTypeName(_retType)} {_uniqueName}({CreateMethodParameters()}){ConstStrings.CppFunctionNoexcept}";
         }
 
         public string CreateMethodFunctionTypedefStatement(string cppTypedefName)
@@ -216,9 +216,49 @@ namespace LeanAOT.ToCpp
             return $"typedef {CreateRelaxMethodFunctionTypeDefine(cppTypedefName)}";
         }
 
+        public string CreateRelaxMethodFunctionPointerTypeForCast()
+        {
+            var sb = new StringBuilder();
+            sb.Append(MethodGenerationUtil.GetResultTypeName(_retType));
+            sb.Append(" (*)(");
+            bool first = true;
+            foreach (var param in _paramsIncludeThis)
+            {
+                if (first)
+                    first = false;
+                else
+                    sb.Append(", ");
+                sb.Append(MethodGenerationUtil.GetCppTypeNameAsFieldOrArgOrLoc(param.Type, TypeNameRelaxLevel.AbiRelaxed));
+            }
+            sb.Append(')');
+            sb.Append(ConstStrings.CppFunctionNoexcept);
+            return sb.ToString();
+        }
+
         public string CreateMethodFunctionTypeDefineWithoutName()
         {
             return CreateMethodFunctionTypeDefine("");
+        }
+
+        public string CreateNativeMethodFunctionTypeDefine(string cppTypedefName)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append(MethodGenerationUtil.GetCppTypeNameAsFieldOrArgOrLoc(_retType, TypeNameRelaxLevel.AbiRelaxed));
+            sb.Append($" (*{cppTypedefName})(");
+            bool first = true;
+            foreach (var param in _paramsIncludeThis)
+            {
+                if (first)
+                    first = false;
+                else
+                {
+                    sb.Append(", ");
+                }
+                sb.Append(MethodGenerationUtil.GetExactTypeName(param.Type));
+            }
+            sb.Append(')');
+            sb.Append(ConstStrings.CppFunctionNoexcept);
+            return sb.ToString();
         }
 
         private string CreateMethodFunctionTypeDefine(string cppTypedefName)
@@ -238,6 +278,7 @@ namespace LeanAOT.ToCpp
                 sb.Append(MethodGenerationUtil.GetExactTypeName(param.Type));
             }
             sb.Append(')');
+            sb.Append(ConstStrings.CppFunctionNoexcept);
             return sb.ToString();
         }
 
@@ -258,6 +299,28 @@ namespace LeanAOT.ToCpp
                 sb.Append(MethodGenerationUtil.GetCppTypeNameAsFieldOrArgOrLoc(param.Type, TypeNameRelaxLevel.AbiRelaxed));
             }
             sb.Append(')');
+            sb.Append(ConstStrings.CppFunctionNoexcept);
+            return sb.ToString();
+        }
+
+        public string CreateOverrideRetTypeRelaxMethodFunctionTypeDefine(string cppTypedefName, string retType)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append($"{retType}");
+            sb.Append($" (*{cppTypedefName})(");
+            bool first = true;
+            foreach (var param in _paramsIncludeThis)
+            {
+                if (first)
+                    first = false;
+                else
+                {
+                    sb.Append(", ");
+                }
+                sb.Append(MethodGenerationUtil.GetExactTypeName(param.Type));
+            }
+            sb.Append(')');
+            sb.Append(ConstStrings.CppFunctionNoexcept);
             return sb.ToString();
         }
     }

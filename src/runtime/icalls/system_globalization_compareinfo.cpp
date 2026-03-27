@@ -6,7 +6,9 @@
 #include <cstring>
 #include <wctype.h>
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 // CompareOptions enum values
@@ -50,7 +52,7 @@ static int32_t compare_char(char16_t c1, char16_t c2, int32_t options)
 }
 
 RtResult<int32_t> SystemGlobalizationCompareInfo::internal_compare_icall(const char16_t* str1, int32_t length1, const char16_t* str2, int32_t length2,
-                                                                         int32_t options)
+                                                                         int32_t options) noexcept
 {
     assert(length1 >= 0 && length2 >= 0);
     int32_t min_len = std::min(length1, length2);
@@ -81,7 +83,7 @@ RtResult<int32_t> SystemGlobalizationCompareInfo::internal_compare_icall(const c
 
 /// @icall: System.Globalization.CompareInfo::internal_compare_icall
 static RtResultVoid internal_compare_icall_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                                   interp::RtStackObject* ret)
+                                                   interp::RtStackObject* ret) noexcept
 {
     auto str1 = EvalStackOp::get_param<const char16_t*>(params, 0);
     auto length1 = EvalStackOp::get_param<int32_t>(params, 1);
@@ -94,7 +96,7 @@ static RtResultVoid internal_compare_icall_invoker(metadata::RtManagedMethodPoin
 }
 
 RtResult<int32_t> SystemGlobalizationCompareInfo::internal_index_icall(const char16_t* source, int32_t source_start_index, int32_t source_count,
-                                                                       const char16_t* value, int32_t value_length, bool first)
+                                                                       const char16_t* value, int32_t value_length, bool first) noexcept
 {
     if (source_count < value_length)
     {
@@ -105,7 +107,7 @@ RtResult<int32_t> SystemGlobalizationCompareInfo::internal_index_icall(const cha
     {
         for (int32_t i = 0; i <= source_count - value_length; i++)
         {
-            if (std::memcmp(source + source_start_index + i, value, value_length * sizeof(char16_t)) == 0)
+            if (std::memcmp(source + source_start_index + i, value, static_cast<size_t>(value_length) * sizeof(char16_t)) == 0)
             {
                 RET_OK(source_start_index + i);
             }
@@ -115,7 +117,7 @@ RtResult<int32_t> SystemGlobalizationCompareInfo::internal_index_icall(const cha
     {
         for (int32_t i = source_count - value_length; i >= 0; i--)
         {
-            if (std::memcmp(source + source_start_index + i, value, value_length * sizeof(char16_t)) == 0)
+            if (std::memcmp(source + source_start_index + i, value, static_cast<size_t>(value_length) * sizeof(char16_t)) == 0)
             {
                 RET_OK(source_start_index + i);
             }
@@ -126,7 +128,7 @@ RtResult<int32_t> SystemGlobalizationCompareInfo::internal_index_icall(const cha
 
 /// @icall: System.Globalization.CompareInfo::internal_index_icall(System.Char*,System.Int32,System.Int32,System.Char*,System.Int32,System.Boolean)
 static RtResultVoid internal_index_icall_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                                 interp::RtStackObject* ret)
+                                                 interp::RtStackObject* ret) noexcept
 {
     auto source = EvalStackOp::get_param<const char16_t*>(params, 0);
     auto source_start_index = EvalStackOp::get_param<int32_t>(params, 1);
@@ -140,16 +142,18 @@ static RtResultVoid internal_index_icall_invoker(metadata::RtManagedMethodPointe
     RET_VOID_OK();
 }
 
-static vm::InternalCallEntry s_internal_call_entries[] = {
+static vm::InternalCallEntry s_internal_call_entries_system_globalization_compareinfo[] = {
     {"System.Globalization.CompareInfo::internal_compare_icall", (vm::InternalCallFunction)&SystemGlobalizationCompareInfo::internal_compare_icall,
      internal_compare_icall_invoker},
     {"System.Globalization.CompareInfo::internal_index_icall(System.Char*,System.Int32,System.Int32,System.Char*,System.Int32,System.Boolean)",
      (vm::InternalCallFunction)&SystemGlobalizationCompareInfo::internal_index_icall, internal_index_icall_invoker},
 };
 
-utils::Span<vm::InternalCallEntry> SystemGlobalizationCompareInfo::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemGlobalizationCompareInfo::get_internal_call_entries() noexcept
 {
-    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries, sizeof(s_internal_call_entries) / sizeof(vm::InternalCallEntry));
+    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries_system_globalization_compareinfo,
+                                              sizeof(s_internal_call_entries_system_globalization_compareinfo) / sizeof(vm::InternalCallEntry));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

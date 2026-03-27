@@ -10,7 +10,7 @@ add_executable(custom-pinvoke main.cpp)
 target_link_libraries(custom-pinvoke PRIVATE leanclr)
 
 set_target_properties(custom-pinvoke PROPERTIES
-    CXX_STANDARD 17
+    CXX_STANDARD 11
     CXX_STANDARD_REQUIRED ON
 )
 

@@ -8,10 +8,12 @@
 #include "vm/class.h"
 #include "vm/reflection.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResult<vm::RtReflectionMethod*> SystemDelegate::get_virtual_method_internal(vm::RtDelegate* this_delegate)
+RtResult<vm::RtReflectionMethod*> SystemDelegate::get_virtual_method_internal(vm::RtDelegate* this_delegate) noexcept
 {
     const metadata::RtMethodInfo* virtual_method = nullptr;
 
@@ -31,7 +33,7 @@ RtResult<vm::RtReflectionMethod*> SystemDelegate::get_virtual_method_internal(vm
 
 /// @icall: System.Delegate::GetVirtualMethod_internal()
 static RtResultVoid get_virtual_method_internal_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                        const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                        const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     auto this_delegate = EvalStackOp::get_param<vm::RtDelegate*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtReflectionMethod*, reflection_method, SystemDelegate::get_virtual_method_internal(this_delegate));
@@ -40,20 +42,14 @@ static RtResultVoid get_virtual_method_internal_invoker(metadata::RtManagedMetho
 }
 
 RtResult<vm::RtMulticastDelegate*> SystemDelegate::create_delegate_internal(vm::RtReflectionType* delegate_type, vm::RtObject* target,
-                                                                            vm::RtReflectionMethod* method, bool throw_on_bind)
+                                                                            vm::RtReflectionMethod* method, bool throw_on_bind) noexcept
 {
-    // FIXME: how to deal with throw_on_bind?
-    (void)throw_on_bind;
-    // Get the delegate class from the reflection type
-    const metadata::RtTypeSig* type_sig = delegate_type->type_handle;
-    DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, delegate_klass, vm::Class::get_class_from_typesig(type_sig));
-
-    return vm::Delegate::new_delegate(delegate_klass, target, method->method);
+    return vm::Delegate::create_delegate_from_reflection(delegate_type, target, method->method, throw_on_bind);
 }
 
 /// @icall: System.Delegate::CreateDelegate_internal(System.Type,System.Object,System.Reflection.MethodInfo,System.Boolean)
 static RtResultVoid create_delegate_internal_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                     const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                     const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     auto delegate_type = EvalStackOp::get_param<vm::RtReflectionType*>(params, 0);
     auto target = EvalStackOp::get_param<vm::RtObject*>(params, 1);
@@ -66,10 +62,10 @@ static RtResultVoid create_delegate_internal_invoker(metadata::RtManagedMethodPo
     RET_VOID_OK();
 }
 
-RtResult<vm::RtMulticastDelegate*> SystemDelegate::alloc_delegate_like_internal(vm::RtDelegate* source)
+RtResult<vm::RtMulticastDelegate*> SystemDelegate::alloc_delegate_like_internal(vm::RtDelegate* source) noexcept
 {
     // Get the delegate's class from the object header
-    metadata::RtClass* del_klass = source->klass;
+    const metadata::RtClass* del_klass = source->klass;
 
     // Allocate a new object of the same class
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtObject*, new_obj, vm::Object::new_object(del_klass));
@@ -85,7 +81,7 @@ RtResult<vm::RtMulticastDelegate*> SystemDelegate::alloc_delegate_like_internal(
 
 /// @icall: System.Delegate::AllocDelegateLike_internal(System.Delegate)
 static RtResultVoid alloc_delegate_like_internal_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                         const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                         const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     auto source = EvalStackOp::get_param<vm::RtDelegate*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtMulticastDelegate*, new_delegate, SystemDelegate::alloc_delegate_like_internal(source));
@@ -93,7 +89,7 @@ static RtResultVoid alloc_delegate_like_internal_invoker(metadata::RtManagedMeth
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemDelegate::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemDelegate::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Delegate::GetVirtualMethod_internal()", (vm::InternalCallFunction)&SystemDelegate::get_virtual_method_internal,
@@ -106,4 +102,5 @@ utils::Span<vm::InternalCallEntry> SystemDelegate::get_internal_call_entries()
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

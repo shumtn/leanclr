@@ -6,9 +6,11 @@
 #include "cli_image.h"
 
 #include <cstring>
-#include <optional>
+#include "core/stl_compat.h"
 
-namespace leanclr::metadata
+namespace leanclr
+{
+namespace metadata
 {
 
 struct PEHeader
@@ -61,13 +63,13 @@ constexpr uint16_t OPTIONAL_HEADER_SIZE64 = 240;
 constexpr uint32_t CLI_HEADER_OFFSET32 = 208;
 constexpr uint32_t CLI_HEADER_OFFSET64 = 224;
 
-#define RET_BAD_IMAGE_ON_FALSE(expr)      \
-    do                                    \
-    {                                     \
-        if (!(expr))                      \
-        {                                 \
-            return RtErr::BadImageFormat; \
-        }                                 \
+#define RET_BAD_IMAGE_ON_FALSE(expr)               \
+    do                                             \
+    {                                              \
+        if (!(expr))                               \
+        {                                          \
+            RET_ASSERT_ERR(RtErr::BadImageFormat); \
+        }                                          \
     } while (0)
 
 RtResult<CliImage*> PeImageReader::ReadCliImage(alloc::MemPool& imagePrivatePool)
@@ -149,4 +151,5 @@ RtResult<CliImage*> PeImageReader::ReadCliImage(alloc::MemPool& imagePrivatePool
 }
 
 #undef RET_BAD_IMAGE_ON_FALSE
-} // namespace leanclr::metadata
+} // namespace metadata
+} // namespace leanclr

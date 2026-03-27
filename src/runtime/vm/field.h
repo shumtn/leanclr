@@ -1,12 +1,14 @@
 #pragma once
 
-#include "rt_base.h"
+#include "core/rt_base.h"
 #include "metadata/rt_metadata.h"
 #include "utils/rt_vector.h"
 #include "utils/binary_reader.h"
 #include "rt_managed_types.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 class Field
 {
@@ -35,17 +37,20 @@ class Field
     // Check if field is private
     static bool is_private(const metadata::RtFieldInfo* field);
 
+    static bool has_field_marshal(const metadata::RtFieldInfo* field);
+
     // Inflate field with generic context
     static RtResult<const metadata::RtFieldInfo*> inflate_field(const metadata::RtFieldInfo* field, const metadata::RtGenericContext* generic_context);
 
+    static uint32_t get_field_offset_includes_object_header_for_all_type(const metadata::RtFieldInfo* field);
     // Get field offset including object header for reference types
-    static size_t get_field_offset_includes_object_header_for_reference_type(const metadata::RtFieldInfo* field);
+    static uint32_t get_field_offset_includes_object_header_for_reference_type(const metadata::RtFieldInfo* field);
 
     // Get field offset including object header for all types
-    static size_t get_field_offset_includes_object_header_for_all_type(const metadata::RtFieldInfo* field);
+    static uint32_t get_instance_field_offset_includes_object_header_for_all_type(const metadata::RtFieldInfo* field);
 
     // Get field offset excluding object header
-    static size_t get_field_offset_excludes_object_header_for_all_type(const metadata::RtFieldInfo* field);
+    static uint32_t get_field_offset_excludes_object_header_for_all_type(const metadata::RtFieldInfo* field);
 
     // Get field RVA data
     static RtResult<const uint8_t*> get_field_rva_data(const metadata::RtFieldInfo* field);
@@ -58,9 +63,11 @@ class Field
     static RtResult<RtObject*> get_field_const_object(const metadata::RtFieldInfo* field);
 
     // Set instance field value
+    static RtResultVoid get_instance_value(const metadata::RtFieldInfo* field, void* obj, void* value);
     static RtResultVoid set_instance_value(const metadata::RtFieldInfo* field, void* obj, const void* value);
 
     // Set static field value
+    static RtResultVoid get_static_value(const metadata::RtFieldInfo* field, void* value);
     static RtResultVoid set_static_value(const metadata::RtFieldInfo* field, const void* value);
 
     // Get field size
@@ -78,4 +85,5 @@ class Field
     // Get field modifiers
     static RtResultVoid get_field_modifiers(const metadata::RtFieldInfo* field, bool optional, utils::Vector<metadata::RtClass*>& modifiers);
 };
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

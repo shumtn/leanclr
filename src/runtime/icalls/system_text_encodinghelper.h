@@ -2,16 +2,19 @@
 
 #include "icall_base.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 class SystemTextEncodingHelper
 {
   public:
     // @icall: System.Text.EncodingHelper::InternalCodePage(System.Int32&)
-    static RtResult<vm::RtString*> internal_code_page(int32_t* code_page);
+    static RtResult<vm::RtString*> internal_code_page(int32_t* code_page) noexcept;
 
-    static utils::Span<vm::InternalCallEntry> get_internal_call_entries();
+    static utils::Span<vm::InternalCallEntry> get_internal_call_entries() noexcept;
 };
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

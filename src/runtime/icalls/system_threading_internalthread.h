@@ -2,15 +2,18 @@
 
 #include "icall_base.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 class SystemThreadingInternalThread
 {
   public:
-    static utils::Span<vm::InternalCallEntry> get_internal_call_entries();
+    static utils::Span<vm::InternalCallEntry> get_internal_call_entries() noexcept;
 
     // Thread cleanup
-    static RtResultVoid thread_free_internal(vm::RtInternalThread* this_thread);
+    static RtResultVoid thread_free_internal(vm::RtInternalThread* this_thread) noexcept;
 };
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

@@ -3,17 +3,19 @@
 #include "vm/reflection.h"
 #include "interp/machine_state.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 // ========== Implementation Functions ==========
 
-RtResult<vm::RtReflectionMethod*> SystemReflectionMethodBase::get_current_method()
+RtResult<vm::RtReflectionMethod*> SystemReflectionMethodBase::get_current_method() noexcept
 {
     interp::InterpFrame* executing_frame = interp::MachineState::get_global_machine_state().get_executing_frame_stack();
     if (executing_frame == nullptr)
     {
-        RET_ERR(RtErr::ExecutionEngine);
+        RET_ASSERT_ERR(RtErr::ExecutionEngine);
     }
     const metadata::RtMethodInfo* method = executing_frame->method;
     return vm::Reflection::get_method_reflection_object(method, method->parent);
@@ -23,7 +25,7 @@ RtResult<vm::RtReflectionMethod*> SystemReflectionMethodBase::get_current_method
 
 /// @icall: System.Reflection.MethodBase::GetCurrentMethod
 static RtResultVoid get_current_method_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                               const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                               const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -35,14 +37,16 @@ static RtResultVoid get_current_method_invoker(metadata::RtManagedMethodPointer 
 
 // ========== Internal Call Entries ==========
 
-static vm::InternalCallEntry s_internal_call_entries[] = {
+static vm::InternalCallEntry s_internal_call_entries_system_reflection_methodbase[] = {
     {"System.Reflection.MethodBase::GetCurrentMethod", (vm::InternalCallFunction)&SystemReflectionMethodBase::get_current_method, get_current_method_invoker},
 };
 
-utils::Span<vm::InternalCallEntry> SystemReflectionMethodBase::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemReflectionMethodBase::get_internal_call_entries() noexcept
 {
-    constexpr size_t entry_count = sizeof(s_internal_call_entries) / sizeof(s_internal_call_entries[0]);
-    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries, entry_count);
+    constexpr size_t entry_count =
+        sizeof(s_internal_call_entries_system_reflection_methodbase) / sizeof(s_internal_call_entries_system_reflection_methodbase[0]);
+    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries_system_reflection_methodbase, entry_count);
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

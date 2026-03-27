@@ -4,11 +4,13 @@
 #include "vm/type.h"
 #include <cstring>
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 RtResult<bool> SystemReflectionAssemblyName::parse_assembly_name(intptr_t name_cstr, metadata::RtMonoAssemblyName* aname, bool* is_version_defined,
-                                                                 bool* is_token_defined)
+                                                                 bool* is_token_defined) noexcept
 {
     const char* name_str = reinterpret_cast<const char*>(name_cstr);
     size_t name_len = std::strlen(name_str);
@@ -20,7 +22,7 @@ RtResult<bool> SystemReflectionAssemblyName::parse_assembly_name(intptr_t name_c
 
 /// @icall: System.Reflection.AssemblyName::ParseAssemblyName(System.IntPtr,Mono.MonoAssemblyName&,System.Boolean&,System.Boolean&)
 static RtResultVoid parse_assembly_name_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                                const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                                const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -34,18 +36,18 @@ static RtResultVoid parse_assembly_name_invoker(metadata::RtManagedMethodPointer
     RET_VOID_OK();
 }
 
-RtResultVoid SystemReflectionAssemblyName::get_public_token(const uint8_t* public_key, uint8_t* public_token, int32_t len)
+RtResultVoid SystemReflectionAssemblyName::get_public_token(const uint8_t* public_key, uint8_t* public_token, int32_t len) noexcept
 {
     (void)public_key;
     (void)public_token;
     (void)len;
     // TODO: implement public key token generation
-    RET_ERR(RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 /// @icall: System.Reflection.AssemblyName::get_public_token(System.Byte*,System.Byte*,System.Int32)
 static RtResultVoid get_public_token_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                             const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                             const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -58,14 +60,14 @@ static RtResultVoid get_public_token_invoker(metadata::RtManagedMethodPointer me
     RET_VOID_OK();
 }
 
-RtResult<metadata::RtMonoAssemblyName*> SystemReflectionAssemblyName::get_native_name(metadata::RtAssembly* ass)
+RtResult<metadata::RtMonoAssemblyName*> SystemReflectionAssemblyName::get_native_name(metadata::RtAssembly* ass) noexcept
 {
     return vm::Reflection::get_assembly_name_object(ass);
 }
 
 /// @icall: System.Reflection.AssemblyName::GetNativeName(System.IntPtr)
 static RtResultVoid get_native_name_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                            const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                            const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -76,7 +78,7 @@ static RtResultVoid get_native_name_invoker(metadata::RtManagedMethodPointer met
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemReflectionAssemblyName::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemReflectionAssemblyName::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Reflection.AssemblyName::ParseAssemblyName(System.IntPtr,Mono.MonoAssemblyName&,System.Boolean&,System.Boolean&)",
@@ -89,4 +91,5 @@ utils::Span<vm::InternalCallEntry> SystemReflectionAssemblyName::get_internal_ca
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

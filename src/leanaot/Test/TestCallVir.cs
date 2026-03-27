@@ -1,4 +1,6 @@
 ﻿
+using System;
+
 public class TestCallVir
 {
     interface IFoo
@@ -65,6 +67,11 @@ public class TestCallVir
         {
             return a + x;
         }
+
+        public override string ToString()
+        {
+            return x.ToString();
+        }
     }
 
     [UnitTest]
@@ -129,6 +136,33 @@ public class TestCallVir
     {
         IFoo foo = new StructFoo() { x = 10 };
         Assert.Equal(13, foo.Sum(1, 2));
+    }
+
+    [UnitTest]
+    public void struct_contraint_tostring()
+    {
+        var a = new StructFoo() { x = 1 };
+        Assert.Equal("1", a.ToString());
+    }
+
+
+    struct StructFoo2 : IDisposable
+    {
+        public int x;
+        void IDisposable.Dispose()
+        {
+            x += 1;
+        }
+    }
+
+    [UnitTest]
+    public void struct_contraint_dispose()
+    {
+        var a = new StructFoo2() { x = 1 };
+        IDisposable b = a;
+        b.Dispose();
+        var c = (StructFoo2)b;
+        Assert.Equal(2, c.x);
     }
 }
 

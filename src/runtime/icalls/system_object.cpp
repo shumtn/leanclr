@@ -4,11 +4,13 @@
 #include "vm/object.h"
 #include "vm/reflection.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 /// @icall: System.Object::InternalGetHashCode
-RtResult<int32_t> SystemObject::get_hash_code(vm::RtObject* obj)
+RtResult<int32_t> SystemObject::get_hash_code(vm::RtObject* obj) noexcept
 {
     // Use object pointer as hash code
     // This matches Rust implementation behavior
@@ -16,8 +18,8 @@ RtResult<int32_t> SystemObject::get_hash_code(vm::RtObject* obj)
     RET_OK(hash);
 }
 
-static RtResultVoid get_hash_code_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                          interp::RtStackObject* ret)
+static RtResultVoid object_get_hash_code_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
+                                                 interp::RtStackObject* ret) noexcept
 {
     auto obj = EvalStackOp::get_this(params);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(int32_t, hash_code, SystemObject::get_hash_code(obj));
@@ -26,7 +28,7 @@ static RtResultVoid get_hash_code_invoker(metadata::RtManagedMethodPointer, cons
 }
 
 /// @icall: System.Object::GetType
-RtResult<vm::RtReflectionType*> SystemObject::get_type(vm::RtObject* obj)
+RtResult<vm::RtReflectionType*> SystemObject::get_type(vm::RtObject* obj) noexcept
 {
     if (obj == nullptr)
         RET_ERR(RtErr::NullReference);
@@ -36,7 +38,7 @@ RtResult<vm::RtReflectionType*> SystemObject::get_type(vm::RtObject* obj)
 }
 
 static RtResultVoid get_type_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                     interp::RtStackObject* ret)
+                                     interp::RtStackObject* ret) noexcept
 {
     auto obj = EvalStackOp::get_this(params);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtReflectionType*, type_obj, SystemObject::get_type(obj));
@@ -45,7 +47,7 @@ static RtResultVoid get_type_invoker(metadata::RtManagedMethodPointer, const met
 }
 
 /// @icall: System.Object::MemberwiseClone
-RtResult<vm::RtObject*> SystemObject::memberwise_clone(vm::RtObject* obj)
+RtResult<vm::RtObject*> SystemObject::memberwise_clone(vm::RtObject* obj) noexcept
 {
     if (obj == nullptr)
         RET_ERR(RtErr::NullReference);
@@ -55,7 +57,7 @@ RtResult<vm::RtObject*> SystemObject::memberwise_clone(vm::RtObject* obj)
 }
 
 static RtResultVoid memberwise_clone_invoker(metadata::RtManagedMethodPointer, const metadata::RtMethodInfo*, const interp::RtStackObject* params,
-                                             interp::RtStackObject* ret)
+                                             interp::RtStackObject* ret) noexcept
 {
     auto obj = EvalStackOp::get_this(params);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(vm::RtObject*, cloned_obj, SystemObject::memberwise_clone(obj));
@@ -64,15 +66,17 @@ static RtResultVoid memberwise_clone_invoker(metadata::RtManagedMethodPointer, c
 }
 
 // Internal call registry
-static vm::InternalCallEntry s_internal_call_entries[] = {
-    {"System.Object::InternalGetHashCode", (vm::InternalCallFunction)&SystemObject::get_hash_code, get_hash_code_invoker},
+static vm::InternalCallEntry s_internal_call_entries_system_object[] = {
+    {"System.Object::InternalGetHashCode", (vm::InternalCallFunction)&SystemObject::get_hash_code, object_get_hash_code_invoker},
     {"System.Object::GetType", (vm::InternalCallFunction)&SystemObject::get_type, get_type_invoker},
     {"System.Object::MemberwiseClone", (vm::InternalCallFunction)&SystemObject::memberwise_clone, memberwise_clone_invoker},
 };
 
-utils::Span<vm::InternalCallEntry> SystemObject::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemObject::get_internal_call_entries() noexcept
 {
-    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries, sizeof(s_internal_call_entries) / sizeof(vm::InternalCallEntry));
+    return utils::Span<vm::InternalCallEntry>(s_internal_call_entries_system_object,
+                                              sizeof(s_internal_call_entries_system_object) / sizeof(vm::InternalCallEntry));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

@@ -8,8 +8,10 @@ namespace LeanAOT.ToCpp
     class ForwardDeclaration
     {
         private readonly CodeThrunkWriter _includesWriter;
-        private readonly CodeThrunkWriter _forwardDeclsWriter;
-        private readonly CodeThrunkWriter _typeDefinesWriter;
+        private readonly CodeThrunkWriter _typeDeclsWriter;
+        private readonly CodeThrunkWriter _methodDeclsWriter;
+        private readonly CodeThrunkWriter _classDefinesWriter;
+        private readonly CodeThrunkWriter _structDefinesWriter;
 
         private readonly MetadataService _metadataService;
         private readonly TypeNameService _typeNameService;
@@ -18,14 +20,19 @@ namespace LeanAOT.ToCpp
         private readonly HashSet<string> _addedIncludes = new HashSet<string>();
         private readonly HashSet<ModuleDef> _addedModules = new HashSet<ModuleDef>();
         private readonly HashSet<IMethod> _addedMethods = new HashSet<IMethod>(MethodEqualityComparer.CompareDeclaringTypes);
+        private readonly HashSet<string> _addedTypeDecls = new HashSet<string>();
         private readonly HashSet<ITypeDefOrRef> _addedTypes = new HashSet<ITypeDefOrRef>(TypeEqualityComparer.Instance);
         private readonly HashSet<MethodInvokerInfo> _addedInvokers = new HashSet<MethodInvokerInfo>();
+
+        private readonly HashSet<string> _addedPinvokeEntries = new HashSet<string>();
 
         public ForwardDeclaration(CodeThunkZone writer)
         {
             _includesWriter = writer.CreateThunk("includes");
-            _forwardDeclsWriter = writer.CreateThunk("forward_declarations");
-            _typeDefinesWriter = writer.CreateThunk("type_definitions");
+            _typeDeclsWriter = writer.CreateThunk("type_declarations");
+            _structDefinesWriter = writer.CreateThunk("struct_definitions");
+            _classDefinesWriter = writer.CreateThunk("class_definitions");
+            _methodDeclsWriter = writer.CreateThunk("method_declarations");
 
             var globalServices = GlobalServices.Inst;
             _metadataService = globalServices.MetadataService;
@@ -33,12 +40,24 @@ namespace LeanAOT.ToCpp
             _manifestService = globalServices.ManifestService;
         }
 
+        // File-scope extern "C" for static P/Invoke (not inside a method — avoids Clang/Emscripten parse issues).
+        public void AddPInvokeNativeExternDeclaration(string externDeclLine)
+        {
+            if (!_addedPinvokeEntries.Add(externDeclLine))
+            {
+                return;
+            }
+            _methodDeclsWriter.AddLine("#if LEANCLR_PINVOKE_STATIC_LINKING");
+            _methodDeclsWriter.AddLine(externDeclLine);
+            _methodDeclsWriter.AddLine("#endif");
+        }
+
         public void AddCommonIncludes(ModuleDef mod)
         {
             AddInclude($"{ModuleGenerationUtil.GetModuleRegistrationHeaderFileNameWithExt(mod)}");
         }
 
-        private void AddInclude(string include)
+        public void AddInclude(string include)
         {
             if (!_addedIncludes.Add(include))
                 return;
@@ -49,11 +68,22 @@ namespace LeanAOT.ToCpp
         {
             if (!_addedModules.Add(mod))
                 return;
-            _forwardDeclsWriter.AddLine(ModuleGenerationUtil.GetModuleForwardDeclaration(mod));
+            _methodDeclsWriter.AddLine(ModuleGenerationUtil.GetModuleForwardDeclaration(mod));
+        }
+
+        private void AddTypeDeclaration(TypeDetail type)
+        {
+            if (!ShouldGenerateStructForType(type))
+            {
+                return;
+            }
+            if (!_addedTypeDecls.Add(type.InstanceTypeName))
+                return;
+            _typeDeclsWriter.AddLine($"struct {type.InstanceTypeName};");
         }
 
 
-        private void AddTypeNotStaticDefinition(TypeDetail type)
+        private bool ShouldGenerateStructForType(TypeDetail type)
         {
             TypeDef typeDef = type.TypeDef;
             if (typeDef != null)
@@ -64,146 +94,242 @@ namespace LeanAOT.ToCpp
                 case ElementType.Class:
                 case ElementType.ValueType:
                 case ElementType.String:
+                case ElementType.GenericInst:
                 case ElementType.TypedByRef:
-                    break;
-                default: return;
+                    return true;
+                default: return false;
                 }
             }
+            return false;
+        }
 
-            _forwardDeclsWriter.AddLine($"struct {type.InstanceTypeName};");
-            foreach (var field in type.InstanceFieldsIncludeParent)
+        private void AddTypeNotStaticDefinition(TypeDetail type, CodeThrunkWriter typeDefinesWriter)
+        {
+            TypeDef typeDef = type.TypeDef;
+            if (!ShouldGenerateStructForType(type))
             {
-                AddTypeForwardDeclaration(field.Type);
+                return;
             }
-            foreach (var field in type.StaticFields)
-            {
-                AddTypeForwardDeclaration(field.Type);
-            }
+
+            AddTypeDeclaration(type);
             uint packingSize = typeDef.ClassLayout != null ? typeDef.PackingSize : 0u;
             uint classSize = typeDef.ClassLayout != null ? typeDef.ClassSize : 0;
+            // ignore class size and packing for reference types, as they don't have instance fields and their static fields are laid out by the runtime
+            if (!MetaUtil.IsValueType(type.TypeSig))
+            {
+                classSize = 0;
+                packingSize = 0;
+            }
             if (typeDef.IsValueType && typeDef.IsExplicitLayout)
             {
-                _typeDefinesWriter.AddLine($"struct {type.InstanceTypeName}");
-                _typeDefinesWriter.AddLine("{");
-                _typeDefinesWriter.IncreaseIndent();
-                _typeDefinesWriter.AddLine("union");
-                _typeDefinesWriter.AddLine("{");
-                _typeDefinesWriter.IncreaseIndent();
+                typeDefinesWriter.AddLine($"struct {type.InstanceTypeName}");
+                typeDefinesWriter.AddLine("{");
+                typeDefinesWriter.IncreaseIndent();
+                typeDefinesWriter.AddLine("union");
+                typeDefinesWriter.AddLine("{");
+                typeDefinesWriter.IncreaseIndent();
                 if (classSize > 0)
                 {
-                    _typeDefinesWriter.AddLine($"uint8_t __classSize[{classSize}];");
+                    typeDefinesWriter.AddLine($"uint8_t __classSize[{classSize}];");
                 }
                 foreach (var field in type.InstanceFieldsIncludeParent)
                 {
                     uint offset = field.FieldBase.FieldOffset.Value;
-                    _typeDefinesWriter.AddLine("#pragma pack(push, 1)");
+                    typeDefinesWriter.AddLine("#pragma pack(push, 1)");
                     string fieldTypeName = _typeNameService.GetCppTypeNameAsFieldOrArgOrLoc(field.Type, TypeNameRelaxLevel.Exactly);
-                    _typeDefinesWriter.AddLine($"struct {{{(offset > 0 ? $" char __offsetPadding{field.Name}[{offset}];" : "")} {fieldTypeName} {field.Name}; }};");
-                    _typeDefinesWriter.AddLine("#pragma pack(pop)");
+                    typeDefinesWriter.AddLine($"struct {{{(offset > 0 ? $" char __offsetPadding{field.Name}[{offset}];" : "")} {fieldTypeName} {field.Name}; }};");
+                    typeDefinesWriter.AddLine("#pragma pack(pop)");
                     if (packingSize > 0)
                     {
-                        _typeDefinesWriter.AddLine($"#pragma pack(push, {packingSize})");
+                        typeDefinesWriter.AddLine($"#pragma pack(push, {packingSize})");
                     }
-                    _typeDefinesWriter.AddLine($"struct {{{(offset > 0 ? $" char __offsetPaddingForPacking{field.Name}[{offset}];" : "")} {fieldTypeName} __packing_{field.Name}; }};");
+                    typeDefinesWriter.AddLine($"struct {{{(offset > 0 ? $" char __offsetPaddingForPacking{field.Name}[{offset}];" : "")} {fieldTypeName} __packing_{field.Name}; }};");
                     if (packingSize > 0)
                     {
-                        _typeDefinesWriter.AddLine($"#pragma pack(pop)");
+                        typeDefinesWriter.AddLine($"#pragma pack(pop)");
                     }
                 }
-                _typeDefinesWriter.DecreaseIndent();
-                _typeDefinesWriter.AddLine("};");
-                _typeDefinesWriter.DecreaseIndent();
-                _typeDefinesWriter.AddLine("};");
+                typeDefinesWriter.DecreaseIndent();
+                typeDefinesWriter.AddLine("};");
+                typeDefinesWriter.DecreaseIndent();
+                typeDefinesWriter.AddLine("};");
             }
             else
             {
                 if (packingSize > 0)
                 {
-                    _typeDefinesWriter.AddLine($"#pragma pack(push, {packingSize})");
+                    typeDefinesWriter.AddLine($"#pragma pack(push, {packingSize})");
                 }
-                _typeDefinesWriter.AddLine($"struct {type.InstanceTypeName}");
-                _typeDefinesWriter.AddLine("{");
-                _typeDefinesWriter.IncreaseIndent();
+                typeDefinesWriter.AddLine($"struct {type.InstanceTypeName}");
+                typeDefinesWriter.AddLine("{");
+                typeDefinesWriter.IncreaseIndent();
                 if (classSize > 0)
                 {
-                    _typeDefinesWriter.AddLine($"union");
-                    _typeDefinesWriter.AddLine("{");
-                    _typeDefinesWriter.IncreaseIndent();
-                    _typeDefinesWriter.AddLine($"uint8_t __classSize[{classSize}];");
-                    _typeDefinesWriter.AddLine("struct");
-                    _typeDefinesWriter.AddLine("{");
-                    _typeDefinesWriter.IncreaseIndent();
+                    typeDefinesWriter.AddLine($"union");
+                    typeDefinesWriter.AddLine("{");
+                    typeDefinesWriter.IncreaseIndent();
+                    typeDefinesWriter.AddLine($"uint8_t __classSize[{classSize}];");
+                    typeDefinesWriter.AddLine("struct");
+                    typeDefinesWriter.AddLine("{");
+                    typeDefinesWriter.IncreaseIndent();
                 }
 
                 if (type.HasObjectHeader)
                 {
-                    _typeDefinesWriter.AddLine($"{ConstStrings.ObjectTypeName} {type.ObjectHeaderFieldName};");
+                    typeDefinesWriter.AddLine($"{ConstStrings.ObjectTypeName} {type.ObjectHeaderFieldName};");
                 }
                 foreach (var field in type.InstanceFieldsIncludeParent)
                 {
-                    _typeDefinesWriter.AddLine($"{_typeNameService.GetCppTypeNameAsFieldOrArgOrLoc(field.Type, TypeNameRelaxLevel.Exactly)} {field.Name};");
+                    typeDefinesWriter.AddLine($"{_typeNameService.GetCppTypeNameAsFieldOrArgOrLoc(field.Type, TypeNameRelaxLevel.Exactly)} {field.Name};");
+                }
+                if (!type.HasObjectHeader && type.InstanceFieldsIncludeParent.Count == 0)
+                {
+                    typeDefinesWriter.AddLine($"uint8_t __placeholderForEmptyStruct;");
                 }
                 if (classSize > 0)
                 {
-                    _typeDefinesWriter.DecreaseIndent();
-                    _typeDefinesWriter.AddLine("};");
-                    _typeDefinesWriter.DecreaseIndent();
-                    _typeDefinesWriter.AddLine("};");
+                    typeDefinesWriter.DecreaseIndent();
+                    typeDefinesWriter.AddLine("};");
+                    typeDefinesWriter.DecreaseIndent();
+                    typeDefinesWriter.AddLine("};");
                 }
 
                 if (_typeNameService.IsPtrLikeSystemValueType(typeDef))
                 {
                     var firstField = type.InstanceFieldsIncludeParent[0];
                     var fieldTypeName = _typeNameService.GetCppTypeNameAsFieldOrArgOrLoc(firstField.Type, TypeNameRelaxLevel.Exactly);
-                    _typeDefinesWriter.AddLine($"{type.InstanceTypeName}() = default;");
-                    _typeDefinesWriter.AddLine($"{type.InstanceTypeName}(const void* ptr) {{ {firstField.Name} = ({fieldTypeName})ptr; }}");
-                    _typeDefinesWriter.AddLine($"operator void*() const {{ return (void*){firstField.Name}; }}");
-                    _typeDefinesWriter.AddLine($"{type.InstanceTypeName}(intptr_t ptr) {{ {firstField.Name} = ({fieldTypeName})ptr; }}");
-                    _typeDefinesWriter.AddLine($"operator intptr_t() const {{ return (intptr_t){firstField.Name}; }}");
+                    typeDefinesWriter.AddLine($"{type.InstanceTypeName}() = default;");
+                    typeDefinesWriter.AddLine($"{type.InstanceTypeName}(const void* ptr) {{ {firstField.Name} = ({fieldTypeName})ptr; }}");
+                    typeDefinesWriter.AddLine($"operator void*() const {{ return (void*){firstField.Name}; }}");
+                    typeDefinesWriter.AddLine($"{type.InstanceTypeName}(intptr_t ptr) {{ {firstField.Name} = ({fieldTypeName})ptr; }}");
+                    typeDefinesWriter.AddLine($"operator intptr_t() const {{ return (intptr_t){firstField.Name}; }}");
                 }
 
-                _typeDefinesWriter.DecreaseIndent();
-                _typeDefinesWriter.AddLine("};");
+                typeDefinesWriter.DecreaseIndent();
+                typeDefinesWriter.AddLine("};");
                 if (packingSize > 0)
                 {
-                    _typeDefinesWriter.AddLine($"#pragma pack(pop)");
+                    typeDefinesWriter.AddLine($"#pragma pack(pop)");
                 }
             }
             if (_typeNameService.IsPtrLikeSystemValueType(typeDef))
             {
-                _typeDefinesWriter.AddLine($"static_assert(sizeof({type.InstanceTypeName}) == sizeof(void*), \"Size mismatch for ptr-like system value type\");");
+                typeDefinesWriter.AddLine($"static_assert(sizeof({type.InstanceTypeName}) == sizeof(void*), \"Size mismatch for ptr-like system value type\");");
             }
         }
 
-        private void AddTypeDefinition(TypeDetail type)
+        private void AddTypeStaticDefinition(TypeDetail type, CodeThrunkWriter typeDefineWriter)
         {
-            AddTypeNotStaticDefinition(type);
-
-            _typeDefinesWriter.AddLine();
-
             if (type.TypeDef == null)
             {
                 return;
             }
-            _typeDefinesWriter.AddLine($"struct {type.StaticTypeName}");
-            _typeDefinesWriter.AddLine("{");
+            typeDefineWriter.AddLine($"struct {type.StaticTypeName}");
+            typeDefineWriter.AddLine("{");
             foreach (var field in type.StaticFields)
             {
-                _typeDefinesWriter.AddLine($"    {_typeNameService.GetCppTypeNameAsFieldOrArgOrLoc(field.Type, TypeNameRelaxLevel.Exactly)} {field.Name};");
+                typeDefineWriter.AddLine($"    {_typeNameService.GetCppTypeNameAsFieldOrArgOrLoc(field.Type, TypeNameRelaxLevel.Exactly)} {field.Name};");
             }
-            _typeDefinesWriter.AddLine("};");
-            _typeDefinesWriter.AddLine();
+            typeDefineWriter.AddLine("};");
         }
 
-        public void AddTypeForwardDeclaration(ITypeDefOrRef type)
-        {
-            AddTypeForwardDeclaration(type.ToTypeSig());
-        }
-
-        public void AddTypeForwardDeclaration(TypeSig typeSig)
+        private void AddTypeDefinitionOnlyForStruct(TypeSig typeSig)
         {
             if (MetaUtil.IsEnumType(typeSig))
             {
+                // don't generate forward declaration or defines or static definitions for enum types
+                return;
+            }
+            typeSig = typeSig.RemovePinnedAndModifiers();
+            ITypeDefOrRef type = typeSig.ToTypeDefOrRef();
+            switch (typeSig.ElementType)
+            {
+            case ElementType.Class:
+            case ElementType.String:
+            {
+                TypeDetail typeDetail = _metadataService.GetTypeDetail(type);
+                AddTypeDeclaration(typeDetail);
+                break;
+            }
+            case ElementType.ValueType:
+            case ElementType.TypedByRef:
+            {
+                TypeDef typeDef = type.ResolveTypeDefThrow();
+                if (typeDef.HasGenericParameters)
+                {
+                    return;
+                }
+                TypeDetail typeDetail = _metadataService.GetTypeDetail(type);
+                AddTypeDefinitionImpl(typeDetail);
+                break;
+            }
+            case ElementType.GenericInst:
+            {
+                GenericInstSig genericInstSig = (GenericInstSig)typeSig;
+                if (genericInstSig.GenericArguments.Any(arg => arg.ContainsGenericParameter))
+                {
+                    return;
+                }
+                TypeDetail typeDetail = _metadataService.GetTypeDetail(type);
+                if (!typeDetail.IsValueType)
+                {
+                    AddTypeDeclaration(typeDetail);
+                }
+                else
+                {
+                    AddTypeDefinitionImpl(typeDetail);
+                }
+                break;
+            }
+            case ElementType.Ptr:
+            case ElementType.ByRef:
+            {
+                AddTypeForwardDefineAny(typeSig.Next, true);
+                break;
+            }
+            }
+        }
+
+        private void AddTypeDefinitionImpl(TypeDetail type)
+        {
+            AddTypeDeclaration(type);
+            if (!_addedTypes.Add(type.Type))
+            {
+                return;
+            }
+            foreach (var field in type.InstanceFieldsIncludeParent)
+            {
+                AddTypeDefinitionOnlyForStruct(field.Type);
+            }
+            foreach (var field in type.StaticFields)
+            {
+                AddTypeDefinitionOnlyForStruct(field.Type);
+            }
+
+            var typeDefineWriter = type.TypeDef != null && type.TypeDef.IsValueType ? _structDefinesWriter : _classDefinesWriter;
+            AddTypeNotStaticDefinition(type, typeDefineWriter);
+
+            typeDefineWriter.AddLine();
+            AddTypeStaticDefinition(type, typeDefineWriter);
+
+            typeDefineWriter.AddLine();
+        }
+
+        public void AddTypeForwardDefine(ITypeDefOrRef type)
+        {
+            AddTypeForwardDefineAny(type.ToTypeSig(), false);
+        }
+
+        public void AddTypeForwardDefine(TypeSig typeSig)
+        {
+            AddTypeForwardDefineAny(typeSig, false);
+        }
+
+        private void AddTypeForwardDefineAny(TypeSig typeSig, bool declaringOnly)
+        {
+            if (MetaUtil.IsEnumType(typeSig))
+            {
+                // don't generate forward declaration or defines or static definitions for enum types
                 return;
             }
             typeSig = typeSig.RemovePinnedAndModifiers();
@@ -220,50 +346,70 @@ namespace LeanAOT.ToCpp
                 {
                     return;
                 }
-                ITypeDefOrRef baseType = type.GetBaseType();
-                if (baseType != null)
+                // if (!declaringOnly && !staticOnly)
+                // {
+                //     ITypeDefOrRef baseType = type.GetBaseType();
+                //     if (baseType != null)
+                //     {
+                //         AddTypeForwardDefineAny(baseType.ToTypeSig(), false, false);
+                //     }
+                // }
+                TypeDetail typeDetail = _metadataService.GetTypeDetail(type);
+                AddTypeDeclaration(typeDetail);
+                if (!declaringOnly)
                 {
-                    AddTypeForwardDeclaration(baseType);
-                }
-
-                if (_addedTypes.Add(type))
-                {
-                    AddTypeDefinition(_metadataService.GetTypeDetail(type));
+                    AddTypeDefinitionImpl(typeDetail);
                 }
                 break;
             }
             case ElementType.GenericInst:
             {
-                if (!_addedTypes.Add(type))
-                {
-                    break;
-                }
+                // if (!_addedTypes.Add(type))
+                // {
+                //     break;
+                // }
 
-                ITypeDefOrRef baseType = type.GetBaseType();
-                if (baseType != null)
-                {
-                    AddTypeForwardDeclaration(baseType);
-                }
+                // ITypeDefOrRef baseType = type.GetBaseType();
+                // if (baseType != null)
+                // {
+                //     AddTypeForwardDefine(baseType);
+                // }
                 GenericInstSig genericInstSig = (GenericInstSig)typeSig;
-
-                bool hasGenericParam = false;
-                foreach (var arg in genericInstSig.GenericArguments)
-                {
-                    AddTypeForwardDeclaration(arg);
-                    hasGenericParam = hasGenericParam || arg.ContainsGenericParameter;
-                }
-                //AddTypeDefinition(_metadataService.GetTypeDetail(genericType));
-                if (hasGenericParam)
+                if (genericInstSig.GenericArguments.Any(arg => arg.ContainsGenericParameter))
                 {
                     return;
                 }
-                AddTypeDefinition(_metadataService.GetTypeDetail(type));
+
+                // bool hasGenericParam = false;
+                // foreach (var arg in genericInstSig.GenericArguments)
+                // {
+                //     AddTypeForwardDefine(arg);
+                //     hasGenericParam = hasGenericParam || arg.ContainsGenericParameter;
+                // }
+                // Debug.Assert(!hasGenericParam);
+                //AddTypeDefinition(_metadataService.GetTypeDetail(genericType));
+                // if (hasGenericParam)
+                // {
+                //     return;
+                // }
+                TypeDetail typeDetail = _metadataService.GetTypeDetail(type);
+                AddTypeDeclaration(typeDetail);
+                if (!declaringOnly)
+                {
+                    AddTypeDefinitionImpl(typeDetail);
+                }
                 break;
             }
             case ElementType.Ptr:
             case ElementType.ByRef:
             {
-                AddTypeForwardDeclaration(typeSig.Next);
+                AddTypeForwardDefineAny(typeSig.Next, true);
+                break;
+            }
+            case ElementType.Array:
+            case ElementType.SZArray:
+            {
+                AddTypeForwardDefineAny(typeSig.Next, true);
                 break;
             }
             case ElementType.Void:
@@ -283,14 +429,10 @@ namespace LeanAOT.ToCpp
             case ElementType.U:
             case ElementType.Object:
             {
-                if (!_addedTypes.Add(type))
-                {
-                    break;
-                }
                 TypeDef typeDef = type.ResolveTypeDef();
-                if (typeDef != null)
+                if (!declaringOnly)
                 {
-                    AddTypeDefinition(_metadataService.GetTypeDetail(typeDef));
+                    AddTypeDefinitionImpl(_metadataService.GetTypeDetail(typeDef));
                 }
                 break;
             }
@@ -300,8 +442,8 @@ namespace LeanAOT.ToCpp
         public void AddFieldForwardDeclaration(IField field)
         {
             var fieldDetail = _metadataService.GetFieldDetail(field);
-            AddTypeForwardDeclaration(fieldDetail.ParentType);
-            AddTypeForwardDeclaration(fieldDetail.Type);
+            AddTypeForwardDefine(fieldDetail.ParentType);
+            AddTypeForwardDefine(fieldDetail.Type);
         }
 
         public void AddMethodForwardDeclaration(IMethod method)
@@ -309,31 +451,35 @@ namespace LeanAOT.ToCpp
             if (!_addedMethods.Add(method))
                 return;
             MethodDetail methodDetail = _metadataService.GetMethodDetail(method);
-            AddTypeForwardDeclaration(methodDetail.RetType);
+            AddTypeForwardDefine(methodDetail.RetType);
             foreach (var param in methodDetail.ParamsIncludeThis)
             {
-                AddTypeForwardDeclaration(param.Type);
+                AddTypeForwardDefine(param.Type);
             }
             MethodDef methodDef = methodDetail.MethodDef;
             if (methodDef == null || methodDef.IsAbstract)
             {
                 return;
             }
+            if (methodDef.Name == VmFunctionNames.Ctor)
+            {
+                AddTypeForwardDefine(methodDetail.DeclaringType);
+            }
 
             if (!_manifestService.ShouldAOT(method))
             {
                 return;
             }
-            _forwardDeclsWriter.AddLine($"{methodDetail.GenerateMethodDeclaring()};");
-            _forwardDeclsWriter.AddLine();
+            _methodDeclsWriter.AddLine($"{methodDetail.GenerateMethodDeclaring()};");
+            _methodDeclsWriter.AddLine();
         }
 
         public void AddInvokerForwardDeclaration(MethodInvokerInfo invoker)
         {
             if (!_addedInvokers.Add(invoker))
                 return;
-            _forwardDeclsWriter.AddLine($"{ConstStrings.RtResultVoidTypeName} {invoker.name}({ConstStrings.ManagedMethodPointerTypeName}, {ConstStrings.MethodInfoPtrTypeName}, const {ConstStrings.StackObjectTypeName}*, {ConstStrings.StackObjectTypeName}*);");
-            _forwardDeclsWriter.AddLine();
+            _methodDeclsWriter.AddLine($"{ConstStrings.RtResultVoidTypeName} {invoker.name}({ConstStrings.ManagedMethodPointerTypeName}, {ConstStrings.MethodInfoPtrTypeName}, const {ConstStrings.StackObjectTypeName}*, {ConstStrings.StackObjectTypeName}*){ConstStrings.CppFunctionNoexcept};");
+            _methodDeclsWriter.AddLine();
         }
     }
 }

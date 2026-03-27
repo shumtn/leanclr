@@ -3,16 +3,18 @@
 #include <cstring>
 #include <string>
 
-#include "rt_base.h"
+#include "core/rt_base.h"
 #include "hash_util.h"
 
-namespace leanclr::utils
+namespace leanclr
+{
+namespace utils
 {
 
-#define DUP_STR_TO_LOCAL_TEMP_ZERO_END_STR(local_temp_str, str, str_len) \
-    char* local_temp_str = (char*)alloca(str_len + 1);                   \
-    std::memcpy(local_temp_str, str, str_len);                           \
-    local_temp_str[str_len] = '\0';
+#define DUP_STR_TO_LOCAL_TEMP_ZERO_END_STR(local_temp_str, str, str_len)    \
+    char* local_temp_str = (char*)alloca(static_cast<size_t>(str_len) + 1); \
+    std::memcpy(local_temp_str, str, static_cast<size_t>(str_len));         \
+    local_temp_str[static_cast<size_t>(str_len)] = '\0';
 
 class StringBuilder;
 
@@ -150,4 +152,5 @@ struct FullNameStrHasher
         return HashUtil::combine_hash(h1, h2);
     }
 };
-} // namespace leanclr::utils
+} // namespace utils
+} // namespace leanclr

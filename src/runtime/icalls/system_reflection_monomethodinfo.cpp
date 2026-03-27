@@ -11,15 +11,17 @@ using namespace leanclr::vm;
 using namespace leanclr::metadata;
 using namespace leanclr::interp;
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
 // Implementation functions
 
-RtResult<RtArray*> SystemReflectionMonoMethodInfo::get_parameter_info(const RtMethodInfo* method, RtReflectionMethod* member)
+RtResult<RtArray*> SystemReflectionMonoMethodInfo::get_parameter_info(const RtMethodInfo* method, RtReflectionMethod* member) noexcept
 {
     RtReflectionType* ref_type = member->ref_type;
-    RtClass* klass = nullptr;
+    const RtClass* klass = nullptr;
     if (ref_type != nullptr)
     {
         DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtClass*, resolved_klass, Class::get_class_from_typesig(ref_type->type_handle));
@@ -32,12 +34,12 @@ RtResult<RtArray*> SystemReflectionMonoMethodInfo::get_parameter_info(const RtMe
     return Reflection::get_param_objects(method, klass);
 }
 
-RtResult<int32_t> SystemReflectionMonoMethodInfo::get_method_attributes(const RtMethodInfo* method)
+RtResult<int32_t> SystemReflectionMonoMethodInfo::get_method_attributes(const RtMethodInfo* method) noexcept
 {
     RET_OK(static_cast<int32_t>(method->flags));
 }
 
-RtResultVoid SystemReflectionMonoMethodInfo::get_method_info(const RtMethodInfo* method, RtMonoMethodInfo* result)
+RtResultVoid SystemReflectionMonoMethodInfo::get_method_info(const RtMethodInfo* method, RtMonoMethodInfo* result) noexcept
 {
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionType*, parent, Reflection::get_klass_reflection_object(method->parent));
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtReflectionType*, return_type, Reflection::get_type_reflection_object(method->return_type));
@@ -53,7 +55,7 @@ RtResultVoid SystemReflectionMonoMethodInfo::get_method_info(const RtMethodInfo*
     RET_VOID_OK();
 }
 
-RtResult<RtObject*> SystemReflectionMonoMethodInfo::get_retval_marshal(const RtMethodInfo* method)
+RtResult<RtObject*> SystemReflectionMonoMethodInfo::get_retval_marshal(const RtMethodInfo* method) noexcept
 {
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(std::optional<uint32_t>, return_value_token_opt, Method::get_parameter_token(method, -1));
 
@@ -85,7 +87,7 @@ RtResult<RtObject*> SystemReflectionMonoMethodInfo::get_retval_marshal(const RtM
 // Invoker functions
 
 /// @icall: System.Reflection.MonoMethodInfo::get_parameter_info
-static RtResultVoid get_parameter_info_invoker(RtManagedMethodPointer, const RtMethodInfo*, const RtStackObject* params, RtStackObject* ret)
+static RtResultVoid get_parameter_info_invoker(RtManagedMethodPointer, const RtMethodInfo*, const RtStackObject* params, RtStackObject* ret) noexcept
 {
     const RtMethodInfo* method = EvalStackOp::get_param<const RtMethodInfo*>(params, 0);
     RtReflectionMethod* member = EvalStackOp::get_param<RtReflectionMethod*>(params, 1);
@@ -95,7 +97,7 @@ static RtResultVoid get_parameter_info_invoker(RtManagedMethodPointer, const RtM
 }
 
 /// @icall: System.Reflection.MonoMethodInfo::get_method_attributes
-static RtResultVoid get_method_attributes_invoker(RtManagedMethodPointer, const RtMethodInfo*, const RtStackObject* params, RtStackObject* ret)
+static RtResultVoid get_method_attributes_invoker(RtManagedMethodPointer, const RtMethodInfo*, const RtStackObject* params, RtStackObject* ret) noexcept
 {
     const RtMethodInfo* method = EvalStackOp::get_param<const RtMethodInfo*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(int32_t, attrs, SystemReflectionMonoMethodInfo::get_method_attributes(method));
@@ -104,7 +106,7 @@ static RtResultVoid get_method_attributes_invoker(RtManagedMethodPointer, const 
 }
 
 /// @icall: System.Reflection.MonoMethodInfo::get_method_info
-static RtResultVoid get_method_info_invoker(RtManagedMethodPointer, const RtMethodInfo*, const RtStackObject* params, RtStackObject* ret)
+static RtResultVoid get_method_info_invoker(RtManagedMethodPointer, const RtMethodInfo*, const RtStackObject* params, RtStackObject* ret) noexcept
 {
     const RtMethodInfo* method = EvalStackOp::get_param<const RtMethodInfo*>(params, 0);
     RtMonoMethodInfo* result_info = EvalStackOp::get_param<RtMonoMethodInfo*>(params, 1);
@@ -113,7 +115,7 @@ static RtResultVoid get_method_info_invoker(RtManagedMethodPointer, const RtMeth
 }
 
 /// @icall: System.Reflection.MonoMethodInfo::get_retval_marshal(System.IntPtr)
-static RtResultVoid get_retval_marshal_invoker(RtManagedMethodPointer, const RtMethodInfo*, const RtStackObject* params, RtStackObject* ret)
+static RtResultVoid get_retval_marshal_invoker(RtManagedMethodPointer, const RtMethodInfo*, const RtStackObject* params, RtStackObject* ret) noexcept
 {
     const RtMethodInfo* method = EvalStackOp::get_param<const RtMethodInfo*>(params, 0);
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtObject*, retval_marshal, SystemReflectionMonoMethodInfo::get_retval_marshal(method));
@@ -123,7 +125,7 @@ static RtResultVoid get_retval_marshal_invoker(RtManagedMethodPointer, const RtM
 
 // Internal call entries
 
-static InternalCallEntry s_internal_call_entries[] = {
+static InternalCallEntry s_internal_call_entries_system_reflection_monomethodinfo[] = {
     {"System.Reflection.MonoMethodInfo::get_parameter_info", (InternalCallFunction)&SystemReflectionMonoMethodInfo::get_parameter_info,
      get_parameter_info_invoker},
     {"System.Reflection.MonoMethodInfo::get_method_attributes", (InternalCallFunction)&SystemReflectionMonoMethodInfo::get_method_attributes,
@@ -133,10 +135,12 @@ static InternalCallEntry s_internal_call_entries[] = {
      get_retval_marshal_invoker},
 };
 
-utils::Span<InternalCallEntry> SystemReflectionMonoMethodInfo::get_internal_call_entries()
+utils::Span<InternalCallEntry> SystemReflectionMonoMethodInfo::get_internal_call_entries() noexcept
 {
-    constexpr size_t entry_count = sizeof(s_internal_call_entries) / sizeof(s_internal_call_entries[0]);
-    return utils::Span<InternalCallEntry>(s_internal_call_entries, entry_count);
+    constexpr size_t entry_count =
+        sizeof(s_internal_call_entries_system_reflection_monomethodinfo) / sizeof(s_internal_call_entries_system_reflection_monomethodinfo[0]);
+    return utils::Span<InternalCallEntry>(s_internal_call_entries_system_reflection_monomethodinfo, entry_count);
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

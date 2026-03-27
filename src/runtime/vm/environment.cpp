@@ -7,7 +7,9 @@
 #include "utils/string_util.h"
 #include "utils/string_builder.h"
 
-namespace leanclr::vm
+namespace leanclr
+{
+namespace vm
 {
 
 static int32_t s_exit_code = 0;
@@ -116,7 +118,7 @@ RtResult<RtString*> Environment::get_environment_variable(const char* variable_n
 RtResultVoid Environment::set_environment_variable(const Utf16Char* variable_name, int32_t variable_name_length, const Utf16Char* value, int32_t value_length)
 {
     utils::StringBuilder sb;
-    utils::StringUtil::utf16_to_utf8(variable_name, variable_name_length, sb);
+    utils::StringUtil::utf16_to_utf8(variable_name, static_cast<size_t>(variable_name_length), sb);
     const char* key = sb.as_cstr();
     auto it = s_environment_variables_map.find(key);
     if (it != s_environment_variables_map.end())
@@ -129,7 +131,7 @@ RtResultVoid Environment::set_environment_variable(const Utf16Char* variable_nam
         else
         {
             utils::StringBuilder val_sb;
-            utils::StringUtil::utf16_to_utf8(value, value_length, val_sb);
+            utils::StringUtil::utf16_to_utf8(value, static_cast<size_t>(value_length), val_sb);
             RtString* val_str = String::create_string_from_utf8chars(val_sb.as_cstr(), static_cast<int32_t>(val_sb.length()));
             it->second = val_str;
             RET_VOID_OK();
@@ -142,7 +144,7 @@ RtResultVoid Environment::set_environment_variable(const Utf16Char* variable_nam
             RET_VOID_OK();
         }
         utils::StringBuilder val_sb;
-        utils::StringUtil::utf16_to_utf8(value, value_length, val_sb);
+        utils::StringUtil::utf16_to_utf8(value, static_cast<size_t>(value_length), val_sb);
         const char* new_key = utils::StringUtil::strdup(key);
         RtString* val_str = String::create_string_from_utf8chars(val_sb.as_cstr(), static_cast<int32_t>(val_sb.length()));
         s_environment_variables_map.insert({new_key, val_str});
@@ -156,8 +158,10 @@ RtResult<RtArray*> Environment::get_environment_variable_names()
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(RtArray*, names_array,
                                             Array::new_szarray_from_ele_klass(string_class, static_cast<int32_t>(s_environment_variables_map.size())));
     size_t index = 0;
-    for (const auto& [key, value] : s_environment_variables_map)
+    for (utils::HashMap<const char*, RtString*, utils::CStrHasher, utils::CStrCompare>::const_iterator it = s_environment_variables_map.begin();
+         it != s_environment_variables_map.end(); ++it)
     {
+        const char* key = it->first;
         RtString* name_str = String::create_string_from_utf8cstr(key);
         Array::set_array_data_at<RtString*>(names_array, static_cast<int32_t>(index), name_str);
         ++index;
@@ -167,27 +171,27 @@ RtResult<RtArray*> Environment::get_environment_variable_names()
 
 RtResult<vm::RtString*> Environment::get_windows_folder_path(int32_t)
 {
-    RET_ERR(RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 RtResult<vm::RtArray*> Environment::get_logical_drives()
 {
-    RET_ERR(RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 RtResult<vm::RtString*> Environment::get_machine_config_path()
 {
-    RET_ERR(RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 RtResult<vm::RtString*> Environment::get_home()
 {
-    RET_ERR(RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 RtResult<vm::RtString*> Environment::get_bundled_machine_config()
 {
-    RET_ERR(RtErr::NotImplemented);
+    RETURN_NOT_IMPLEMENTED_ERROR();
 }
 
 void Environment::fail_fast()
@@ -206,4 +210,5 @@ int32_t Environment::get_page_size()
     return 4096;
 }
 
-} // namespace leanclr::vm
+} // namespace vm
+} // namespace leanclr

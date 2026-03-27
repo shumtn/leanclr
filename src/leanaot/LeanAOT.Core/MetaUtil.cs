@@ -166,6 +166,20 @@ namespace LeanAOT.Core
             }
         }
 
+        public static bool IsInheritFrom(TypeDef typeDef, string baseTypeFullName)
+        {
+            TypeDef cur = typeDef;
+            while (cur != null)
+            {
+                if (cur.FullName == baseTypeFullName)
+                {
+                    return true;
+                }
+                cur = GetBaseTypeDef(cur);
+            }
+            return false;
+        }
+
         public static bool IsInheritFromDOTSTypes(TypeDef typeDef)
         {
             TypeDef cur = typeDef;
@@ -319,24 +333,25 @@ namespace LeanAOT.Core
             case ElementType.I8:
             case ElementType.U8:
             case ElementType.R4:
-            case ElementType.R8: return true;
-            case ElementType.String: return true;
-            case ElementType.TypedByRef: return false;
-            case ElementType.I: return true;
-            case ElementType.U: return true;
-            case ElementType.Object: return false;
-            case ElementType.Sentinel: return false;
-            case ElementType.Ptr: return true;
-            case ElementType.ByRef: return true;
-            case ElementType.SZArray: return false;
-            case ElementType.Array: return false;
+            case ElementType.R8:
+            case ElementType.I:
+            case ElementType.U:
+            case ElementType.Ptr:
+            case ElementType.ByRef:
             case ElementType.ValueType:
-            {
+            case ElementType.FnPtr:
                 return true;
-            }
             case ElementType.Var:
-            case ElementType.MVar: return true;
-            case ElementType.Class: return false;
+            case ElementType.MVar:
+                return true;
+            case ElementType.String:
+            case ElementType.TypedByRef:
+            case ElementType.Object:
+            case ElementType.Sentinel:
+            case ElementType.SZArray:
+            case ElementType.Array:
+            case ElementType.Class:
+                return false;
             case ElementType.GenericInst:
             {
                 var gia = (GenericInstSig)a;
@@ -351,7 +366,6 @@ namespace LeanAOT.Core
                 }
                 return typeDef.IsValueType;
             }
-            case ElementType.FnPtr: return true;
             case ElementType.ValueArray: return true;
             case ElementType.Module: return false;
             default:
@@ -918,6 +932,12 @@ namespace LeanAOT.Core
             }
             result.Append(')');
             return result.ToString();
+        }
+
+        public static bool IsCorlibOrSystemOrSystemCore(ModuleDef module)
+        {
+            UTF8String moduleName = module.Assembly.Name;
+            return module.IsCoreLibraryModule == true || moduleName == "mscorlib" || moduleName == "System" || moduleName == "System.Core";
         }
     }
 }

@@ -5,7 +5,9 @@
 #include "vm/settings.h"
 #include "interpreter.h"
 
-namespace leanclr::interp
+namespace leanclr
+{
+namespace interp
 {
 void MachineState::initialize()
 {
@@ -15,7 +17,7 @@ void MachineState::initialize()
         size_t default_size = vm::Settings::get_default_eval_stack_object_count();
         ms._eval_stack_base = alloc::GeneralAllocation::calloc_any<RtStackObject>(default_size);
         assert(ms._eval_stack_base != nullptr);
-        ms._eval_stack_size = default_size;
+        ms._eval_stack_size = static_cast<uint32_t>(default_size);
     }
 
     if (ms._frame_stack_base == nullptr)
@@ -23,7 +25,7 @@ void MachineState::initialize()
         size_t default_frame_size = vm::Settings::get_default_frame_stack_size();
         ms._frame_stack_base = static_cast<InterpFrame*>(alloc::GeneralAllocation::malloc_zeroed(sizeof(InterpFrame) * default_frame_size));
         assert(ms._frame_stack_base != nullptr);
-        ms._frame_stack_size = default_frame_size;
+        ms._frame_stack_size = static_cast<uint32_t>(default_frame_size);
     }
 
     ms._eval_stack_top = 0;
@@ -76,7 +78,7 @@ RtResult<InterpFrame*> MachineState::enter_frame_from_native(const metadata::RtM
     const uint32_t method_max_stack = imi->max_stack_object_size;
     frame->old_eval_stack_top = get_eval_stack_top();
     UNWRAP_OR_RET_ERR_ON_FAIL(frame->eval_stack_base, alloc_eval_stack(method_max_stack));
-#ifndef NDEBUG
+#if LEANCLR_DEBUG
     std::memset(frame->eval_stack_base, 0, static_cast<size_t>(method_max_stack) * sizeof(RtStackObject));
 #endif
 
@@ -113,7 +115,7 @@ RtResult<InterpFrame*> MachineState::enter_frame_from_interp(const metadata::RtM
     _eval_stack_top = new_eval_stack_top;
     frame->eval_stack_base = frame_base;
     frame->eval_stack_size = method_max_stack;
-#ifndef NDEBUG
+#if LEANCLR_DEBUG
     const size_t arg_size = method->total_arg_stack_object_size;
     std::memset(frame->eval_stack_base + arg_size, 0, (static_cast<size_t>(method_max_stack) - arg_size) * sizeof(RtStackObject));
 #endif
@@ -150,7 +152,7 @@ uint32_t MachineState::enter_frame_from_icall_or_intrinsic(const metadata::RtMet
         InterpFrame* frame = _frame_stack_base + _frame_stack_top;
         _frame_stack_top += 1;
         frame->method = method;
-#ifndef NDEBUG
+#if LEANCLR_DEBUG
         frame->eval_stack_base = nullptr;
         frame->eval_stack_size = 0;
         frame->ip = nullptr;
@@ -171,4 +173,5 @@ void MachineState::leave_frame_from_icall_or_intrinsic(uint32_t old_frame_top)
     _frame_stack_top = old_frame_top;
 }
 
-} // namespace leanclr::interp
+} // namespace interp
+} // namespace leanclr

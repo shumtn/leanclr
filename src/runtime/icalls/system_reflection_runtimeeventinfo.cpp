@@ -5,10 +5,12 @@
 #include "vm/rt_array.h"
 #include "vm/rt_string.h"
 
-namespace leanclr::icalls
+namespace leanclr
+{
+namespace icalls
 {
 
-RtResultVoid SystemReflectionRuntimeEventInfo::get_event_info(vm::RtReflectionEventInfo* ref_event, vm::RtReflectionMonoEventInfo* ref_event_info)
+RtResultVoid SystemReflectionRuntimeEventInfo::get_event_info(vm::RtReflectionEventInfo* ref_event, vm::RtReflectionMonoEventInfo* ref_event_info) noexcept
 {
     const metadata::RtEventInfo* event_info = ref_event->event;
     DECLARING_AND_UNWRAP_OR_RET_ERR_ON_FAIL(metadata::RtClass*, reflected_klass, vm::Class::get_class_from_typesig(ref_event->ref_type->type_handle));
@@ -60,7 +62,7 @@ RtResultVoid SystemReflectionRuntimeEventInfo::get_event_info(vm::RtReflectionEv
 
 /// @icall: System.Reflection.RuntimeEventInfo::get_event_info(System.Reflection.RuntimeEventInfo,System.Reflection.MonoEventInfo&)
 static RtResultVoid get_event_info_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                           const interp::RtStackObject* params, interp::RtStackObject* ret)
+                                           const interp::RtStackObject* params, interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -71,15 +73,16 @@ static RtResultVoid get_event_info_invoker(metadata::RtManagedMethodPointer meth
     RET_VOID_OK();
 }
 
-RtResult<int32_t> SystemReflectionRuntimeEventInfo::get_metadata_token(vm::RtReflectionEventInfo* event_info)
+RtResult<int32_t> SystemReflectionRuntimeEventInfo::get_metadata_token(vm::RtReflectionEventInfo* event_info) noexcept
 {
     const metadata::RtEventInfo* event = event_info->event;
     RET_OK(static_cast<int32_t>(event->token));
 }
 
 /// @icall: System.Reflection.RuntimeEventInfo::get_metadata_token(System.Reflection.RuntimeEventInfo)
-static RtResultVoid get_metadata_token_invoker(metadata::RtManagedMethodPointer methodPtr, const metadata::RtMethodInfo* method,
-                                               const interp::RtStackObject* params, interp::RtStackObject* ret)
+static RtResultVoid get_metadata_token_invoker_system_reflection_runtimeeventinfo(metadata::RtManagedMethodPointer methodPtr,
+                                                                                  const metadata::RtMethodInfo* method, const interp::RtStackObject* params,
+                                                                                  interp::RtStackObject* ret) noexcept
 {
     (void)methodPtr;
     (void)method;
@@ -89,15 +92,16 @@ static RtResultVoid get_metadata_token_invoker(metadata::RtManagedMethodPointer 
     RET_VOID_OK();
 }
 
-utils::Span<vm::InternalCallEntry> SystemReflectionRuntimeEventInfo::get_internal_call_entries()
+utils::Span<vm::InternalCallEntry> SystemReflectionRuntimeEventInfo::get_internal_call_entries() noexcept
 {
     static vm::InternalCallEntry s_entries[] = {
         {"System.Reflection.RuntimeEventInfo::get_event_info(System.Reflection.RuntimeEventInfo,System.Reflection.MonoEventInfo&)",
          (vm::InternalCallFunction)&SystemReflectionRuntimeEventInfo::get_event_info, get_event_info_invoker},
         {"System.Reflection.RuntimeEventInfo::get_metadata_token(System.Reflection.RuntimeEventInfo)",
-         (vm::InternalCallFunction)&SystemReflectionRuntimeEventInfo::get_metadata_token, get_metadata_token_invoker},
+         (vm::InternalCallFunction)&SystemReflectionRuntimeEventInfo::get_metadata_token, get_metadata_token_invoker_system_reflection_runtimeeventinfo},
     };
     return utils::Span<vm::InternalCallEntry>(s_entries, sizeof(s_entries) / sizeof(s_entries[0]));
 }
 
-} // namespace leanclr::icalls
+} // namespace icalls
+} // namespace leanclr

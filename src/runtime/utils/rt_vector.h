@@ -10,13 +10,15 @@
 
 #include "alloc/general_allocator.h"
 
-namespace leanclr::utils
+namespace leanclr
+{
+namespace utils
 {
 
 template <typename T, typename Allocator = alloc::GeneralAllocator<T>>
 class Vector
 {
-    static_assert(std::is_standard_layout_v<T> && std::is_trivial_v<T>, "T must be a POD type");
+    static_assert(std::is_standard_layout<T>::value && std::is_trivial<T>::value, "T must be a POD type");
 
   public:
     // Standard container type aliases (required for std::back_inserter)
@@ -55,13 +57,10 @@ class Vector
         resize(size);
     }
 
-    ~Vector()
+    explicit Vector(const_iterator begin, const_iterator end, const Allocator& alloc = Allocator()) : allocator_(alloc), data_(nullptr), size_(0), capacity_(0)
     {
-        clear();
-        if (data_)
-        {
-            allocator_.deallocate(data_, capacity_);
-        }
+        assert(begin <= end);
+        push_range(begin, static_cast<size_t>(end - begin));
     }
 
     Vector(const Vector& other) : allocator_(other.allocator_), data_(nullptr), size_(0), capacity_(0)
@@ -112,6 +111,15 @@ class Vector
             other.capacity_ = 0;
         }
         return *this;
+    }
+
+    ~Vector()
+    {
+        clear();
+        if (data_)
+        {
+            allocator_.deallocate(data_, capacity_);
+        }
     }
 
     void push_back(const T& value)
@@ -297,4 +305,5 @@ class Vector
     size_t capacity_;
 };
 
-} // namespace leanclr::utils
+} // namespace utils
+} // namespace leanclr
