@@ -178,18 +178,6 @@ RtException* Exception::raise_internal_runtime_exception(metadata::RtClass* ex_c
     return nullptr;
 }
 
-void Exception::raise_as_cpp_exception(RtException* ex)
-{
-    RtException* raised = raise_aot_exception(ex, nullptr, -1);
-#if (defined(__cpp_exceptions) && (__cpp_exceptions >= 199711L)) || (defined(_CPPUNWIND) && _CPPUNWIND)
-    throw AotExceptionWrapper{raised};
-#else
-    (void)raised;
-    (void)report_unhandled_exception(ex);
-    std::abort();
-#endif
-}
-
 RtResultVoid Exception::report_unhandled_exception(RtException* exception)
 {
     auto handler = vm::Settings::get_report_unhandled_exception_function();

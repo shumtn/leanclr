@@ -12,10 +12,6 @@ struct InterpFrame;
 
 namespace vm
 {
-struct AotExceptionWrapper
-{
-    RtException* exception;
-};
 
 class Exception
 {
@@ -29,7 +25,6 @@ class Exception
     static RtErr raise_internal_runtime_error_as_exception(RtErr err, const char* message);
     static RtException* raise_exception(RtException* ex, interp::InterpFrame* frame, const void* ip);
     static RtException* raise_internal_runtime_exception(metadata::RtClass* ex_klass, const char* message);
-    [[noreturn]] static void raise_as_cpp_exception(RtException* ex);
 
     static RtResultVoid report_unhandled_exception(RtException* exception);
 
