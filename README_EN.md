@@ -160,8 +160,9 @@ Status: **Planned**.
 
 | Repository | Description |
 |------------|-------------|
-| [leanclr4unity](https://github.com/focus-creative-games/leanclr4unity) | LeanCLR runtime and toolchain (**C++11**, zero external dependencies). |
-| [hybridclr](https://github.com/focus-creative-games/hybridclr) | **HybridCLR** — a feature-complete, **zero-intrinsic-cost**, high-performance, low-memory hot-update solution for native C# on all Unity platforms. |
+| [leanclr4unity](https://github.com/focus-creative-games/leanclr4unity) | Unity plugin that replaces IL2CPP with LeanCLR when building for WebGL and mini-games, delivering smaller package size and lower memory footprint |
+| [leanclr-godot](https://github.com/maidopi-usagi/leanCLR-godot) | LeanCLR Godot plugin |
+| [hybridclr](https://github.com/focus-creative-games/hybridclr) | **HybridCLR** — a feature-complete, **zero-intrinsic-cost**, high-performance, low-memory hot-update solution for native C# on all Unity platforms |
 
 ## Contact
 

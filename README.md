@@ -160,7 +160,8 @@ LeanCLR 提供 **Core** 和 **Standard** 两个版本，以满足不同场景的
 
 | 仓库 | 说明 |
 |------|------|
-| [leanclr4unity](https://github.com/focus-creative-games/leanclr4unity) | LeanCLR 运行时与工具链（**C++11**，零外部依赖） |
+| [leanclr4unity](https://github.com/focus-creative-games/leanclr4unity) | leanclr4unity 是 LeanCLR 的 Unity 插件，发布 WebGL / 小游戏平台时替换 IL2CPP 为 LeanCLR，大幅缩减包体、降低内存占用 |
+| [leanclr-godot](https://github.com/maidopi-usagi/leanCLR-godot) | LeanCLR Godot 插件 |
 | [hybridclr](https://github.com/focus-creative-games/hybridclr) | **HybridCLR**：特性完整、零成本、高性能、低内存的 Unity 全平台原生 C# 热更新方案 |
 
 ## 联系方式
